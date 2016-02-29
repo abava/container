@@ -1,0 +1,26 @@
+{
+    "name": "venta/container",
+    "description": "Venta eCommerce Framework Container package",
+    "authors": [
+        {
+            "name": "Konstantins Zukovs",
+            "email": "kz@scandiweb.com"
+        },
+        {
+            "name": "Raivis Vitols",
+            "email": "raivis@scandiweb.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Venta\\Container\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "require-dev": {
+        "phpunit/phpunit": "5.2"
+    },
+    "require": {
+        "container-interop/container-interop": "1.1.*"
+    }
+}

@@ -2,14 +2,14 @@
 
 namespace Venta\Container;
 
-use Venta\Container\Interfaces\ContainerInterface;
+use Venta\Contracts\Container\ContainerContract;
 
 /**
  * Class Container
  *
  * @package Venta\Container
  */
-class Container implements ContainerInterface
+class Container implements ContainerContract
 {
     /**
      * Real container itself

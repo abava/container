@@ -11,6 +11,12 @@
             "email": "raivis@scandiweb.com"
         }
     ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/ventacommerce/contracts.git"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "Venta\\Container\\": "src/"
@@ -21,6 +27,7 @@
         "phpunit/phpunit": "5.2"
     },
     "require": {
-        "container-interop/container-interop": "1.1.*"
+        "container-interop/container-interop": "1.1.*",
+        "venta/contracts": "dev-master"
     }
 }

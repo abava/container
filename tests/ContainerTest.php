@@ -20,10 +20,8 @@ class ContainerTests extends \PHPUnit_Framework_TestCase
         $container->bind('test.class', '\stdClass');
 
         $this->assertInternalType('object', $container->make('test.class'));
-        $this->assertEquals(get_class($container->make('test.class')), 'stdClass');
+        $this->assertInstanceOf('stdClass', $container->make('test.class'));
         $this->assertNotSame($container->make('test.class'), $container->make('test.class'));
-
-        $this->assertNull($container->make('non.existing.binding'));
     }
 
     public function testCanBindStringSharedInstanceToContainer()
@@ -105,7 +103,7 @@ class ContainerTests extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException \Venta\Container\Exceptions\ContainerException
+     * @expectedException \Venta\Container\Exceptions\RewriteException
      */
     public function testCantRebindExistingDefinitionWithoutRewrite()
     {
@@ -124,6 +122,49 @@ class ContainerTests extends \PHPUnit_Framework_TestCase
 
         $this->assertInstanceOf('DIStubClassChild', $container->make('test.class'));
         $this->assertSame($container->make('test.class'), $container->make('test.class'));
+    }
+
+    public function testCanResolveRegularClassName()
+    {
+        $container = $this->_getContainer();
+
+        $this->assertInstanceOf('\stdClass', $container->make('\stdClass'));
+    }
+
+    public function testCanCallMissedMethodDefinition()
+    {
+        $container = $this->_getContainer();
+
+        $this->assertInstanceOf('\stdClass', $container->call('\stdClass@'));
+        $this->assertInstanceOf('\stdClass', $container->call('DIStubClass@')->getItem());
+        $this->assertEquals(24, $container->call('DIStubClass@defineHoursInDay@wrong'));
+    }
+
+    public function testCanResolveInterface()
+    {
+        $container = $this->_getContainer();
+
+        $container->bind('TestInterface', 'TestInterfaceImplementation');
+
+        $this->assertInstanceOf('TestInterface', $container->make('TestInterface'));
+    }
+
+    /**
+     * @expectedException \Venta\Container\Exceptions\InterfaceBindingException
+     */
+    public function testWontBindInterfaceImplementationIfNoImplement()
+    {
+        $container = $this->_getContainer();
+
+        $container->bind('TestInterface', '\stdClass');
+    }
+
+    /**
+     * @expectedException \Venta\Container\Exceptions\NotFoundException
+     */
+    public function testExceptionIfItemCanNotBeResolved()
+    {
+        $this->_getContainer()->make('non.existing.item');
     }
 
     /**
@@ -150,7 +191,7 @@ class ContainerTests extends \PHPUnit_Framework_TestCase
     /**
      * Returns container instance
      *
-     * @return \Venta\Container\Interfaces\ContainerInterface
+     * @return \Venta\Contracts\Container\ContainerContract
      */
     protected function _getContainer()
     {

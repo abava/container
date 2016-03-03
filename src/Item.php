@@ -40,7 +40,7 @@ class Item
     /**
      * Application instance holder
      *
-     * @var \Venta\Container\Interfaces\ContainerInterface
+     * @var \Venta\Contracts\Container\ContainerContract
      */
     protected $_container;
 
@@ -120,7 +120,7 @@ class Item
     /**
      * Application setter
      *
-     * @param  \Venta\Container\Interfaces\ContainerInterface $container
+     * @param  \Venta\Contracts\Container\ContainerContract $container
      * @return $this
      */
     public function setContainer($container)
@@ -190,7 +190,7 @@ class Item
     /**
      * Returns array of resolved arguments, based on parameters array
      *
-     * @param  \ReflectionParameter[] $parameters
+     * @param  \ReflectionParameter[]|array $parameters
      * @param  array $defaultArguments
      * @return array
      */
@@ -199,15 +199,13 @@ class Item
         $arguments = [];
 
         foreach ($parameters as $parameter) {
-            $argument = null;
-
             if ($parameter->hasType()) {
                 $argument = (new Item(null, $parameter->getType()->__toString()))
                     ->setContainer($this->_container)
                     ->make();
             } else {
-                if (array_key_exists($parameter->getName(), $defaultArguments)) {
-                    $argument = $defaultArguments[$parameter->getName()];
+                if (array_key_exists($parameter->name, $defaultArguments)) {
+                    $argument = $defaultArguments[$parameter->name];
                 } else {
                     $argument = $parameter->isOptional()
                         ? $parameter->getDefaultValue()
@@ -251,15 +249,16 @@ class Item
     protected function _parseStringDefinition()
     {
         // 1. Check, if it is class@method definition
-        if (strpos($this->_item, '@') !== false) {
-            return array_combine(
-                ['class', 'method'],
-                array_slice(explode('@', $this->_item), 0, 2)
-            );
+        $exploded = array_filter(explode('@', $this->_item), function($item){
+            return !!$item;
+        });
+
+        if (count($exploded) >= 2) {
+            return array_combine(['class', 'method'], array_slice($exploded, 0, 2));
         }
 
         return [
-            'class' => $this->_item,
+            'class' => str_replace('@', '', $this->_item),
             'method' => null
         ];
     }

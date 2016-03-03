@@ -47,11 +47,19 @@ class Container implements ContainerContract
      */
     public function get($id)
     {
+        // 1. Check alias exists
         if ($this->has($id)) {
             return $this->_container[$id]->make();
         }
 
-        return null;
+        // 2. Check if it is class name
+        if (class_exists($id) || interface_exists($id)) {
+            return $this->_makeItem(null, $id)->make();
+        }
+
+        throw new \Venta\Container\Exceptions\NotFoundException(
+            sprintf('Item %s cannot be resolved', $id)
+        );
     }
 
     /**
@@ -67,7 +75,7 @@ class Container implements ContainerContract
      */
     public function call($method, $arguments = [])
     {
-        return (new Item(null, $method))->make($arguments);
+        return $this->_makeItem(null, $method)->make($arguments);
     }
 
     /**
@@ -88,17 +96,41 @@ class Container implements ContainerContract
      * @param  string $alias
      * @param  mixed $item
      * @param  bool $shared
-     * @throws \Venta\Container\Exceptions\ContainerException
+     * @throws \Venta\Container\Exceptions\RewriteException
+     * @throws \Venta\Container\Exceptions\InterfaceBindingException
      * @return void
      */
     protected function _bindToContainer($alias, $item, $shared = false)
     {
         if ($this->has($alias)) {
-            throw new \Venta\Container\Exceptions\ContainerException(
+            throw new \Venta\Container\Exceptions\RewriteException(
                 sprintf('Alias "%s" is already registered. Use rewrite function in order to rewrite it.', $alias)
             );
         }
 
-        $this->_container[$alias] = (new Item($alias, $item, $shared === true))->setContainer($this);
+        if (interface_exists($alias)) {
+            $item = $this->_makeItem(null, $item)->make();
+
+            if (!($item instanceof $alias)) {
+                throw new \Venta\Container\Exceptions\InterfaceBindingException(
+                    sprintf('Can not bind %s implementation: it does not implement interface', $alias)
+                );
+            }
+        }
+
+        $this->_container[$alias] = $this->_makeItem($alias, $item, $shared)->setContainer($this);
+    }
+
+    /**
+     * Returns new container item instance
+     *
+     * @param  string $alias
+     * @param  mixed $item
+     * @param  bool $shared
+     * @return Item
+     */
+    protected function _makeItem($alias, $item, $shared = false)
+    {
+        return new Item($alias, $item, $shared === true);
     }
 }

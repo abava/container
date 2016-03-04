@@ -8,7 +8,20 @@ interface TestInterface {}
 /**
  * Interface implementation class
  */
-class TestInterfaceImplementation implements TestInterface {}
+class TestInterfaceImplementation implements TestInterface
+{
+    protected $_item;
+
+    public function __construct(\stdClass $item)
+    {
+        $this->_item = $item;
+    }
+
+    public function getItem()
+    {
+        return $this->_item;
+    }
+}
 
 /**
  * Stub for testing interface injections

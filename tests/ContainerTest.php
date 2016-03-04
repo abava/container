@@ -5,7 +5,7 @@ class ContainerTests extends \PHPUnit_Framework_TestCase
     public function testCanTypeHintInterface()
     {
         $container = $this->_getContainer();
-        $stub = new \TestInterfaceImplementation;
+        $stub = new \TestInterfaceImplementation(new \stdClass);
 
         $container->share('TestInterface', $stub);
         $container->share('test.interface', 'DIInterfaceClass');
@@ -146,7 +146,8 @@ class ContainerTests extends \PHPUnit_Framework_TestCase
 
         $container->bind('TestInterface', 'TestInterfaceImplementation');
 
-        $this->assertInstanceOf('TestInterface', $container->make('TestInterface'));
+        $this->assertInstanceOf('TestInterfaceImplementation', $container->make('TestInterface'));
+        $this->assertInstanceOf('\stdClass', $container->make('TestInterface')->getItem());
     }
 
     /**

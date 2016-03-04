@@ -106,7 +106,7 @@ class Item
      */
     public function rewrite($item)
     {
-        $rewrite = (new Item(null, $item))->make();
+        $rewrite = (new Item(null, $item))->setContainer($this->_container)->make();
         $active = $this->make();
 
         if (is_object($rewrite) && is_object($active) && !($rewrite instanceof $active)) {
@@ -249,7 +249,7 @@ class Item
     protected function _parseStringDefinition()
     {
         // 1. Check, if it is class@method definition
-        $exploded = array_filter(explode('@', $this->_item), function($item){
+        $exploded = array_filter(explode('@', $this->_item), function($item) {
             return !!$item;
         });
 

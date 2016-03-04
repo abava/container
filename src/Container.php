@@ -53,7 +53,7 @@ class Container implements ContainerContract
         }
 
         // 2. Check if it is class name
-        if (class_exists($id) || interface_exists($id)) {
+        if (class_exists($id)) {
             return $this->_makeItem(null, $id)->make();
         }
 
@@ -118,7 +118,7 @@ class Container implements ContainerContract
             }
         }
 
-        $this->_container[$alias] = $this->_makeItem($alias, $item, $shared)->setContainer($this);
+        $this->_container[$alias] = $this->_makeItem($alias, $item, $shared);
     }
 
     /**
@@ -131,6 +131,6 @@ class Container implements ContainerContract
      */
     protected function _makeItem($alias, $item, $shared = false)
     {
-        return new Item($alias, $item, $shared === true);
+        return (new Item($alias, $item, $shared === true))->setContainer($this);
     }
 }

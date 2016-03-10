@@ -73,7 +73,7 @@ class Container implements ContainerContract
     /**
      * {@inheritdoc}
      */
-    public function call($method, $arguments = [])
+    public function call($method, array $arguments = [])
     {
         return $this->_makeItem(null, $method)->make($arguments);
     }

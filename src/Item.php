@@ -1,265 +1,162 @@
-<?php
+<?php declare(strict_types = 1);
 
 namespace Venta\Container;
+
+use Ds\PriorityQueue;
+use Venta\Container\Exceptions\RewriteException;
+use Venta\Container\Resolver\ClosureResolver;
+use Venta\Container\Resolver\StringResolver;
+use Venta\Contracts\Container\ItemContract;
 
 /**
  * Class Item
  *
  * @package Venta\Container
  */
-class Item
+class Item implements ItemContract
 {
     /**
-     * Container item alias holder
-     *
-     * @var string
-     */
-    protected $_alias;
-
-    /**
-     * Container item holder
+     * Item holder
      *
      * @var mixed
      */
     protected $_item;
 
     /**
-     * Defines, if instance is shared
+     * Item sharing flag
      *
      * @var bool
      */
-    protected $_shared = false;
+    protected $_share;
 
     /**
-     * Resolved instance holder for shared instances
+     * Resolved instance holder for shared items
      *
-     * @var mixed
+     * @var null|mixed
      */
     protected $_resolved;
 
     /**
-     * Application instance holder
+     * Callbacks to be run on item resolving
      *
-     * @var \Venta\Contracts\Container\ContainerContract
+     * @var PriorityQueue
      */
-    protected $_container;
+    protected $_resolvingCallbacks;
 
     /**
-     * Construct function
+     * Callbacks to be run after item is resolved
      *
-     * @param  string $alias
-     * @param  mixed $item
-     * @param  bool  $shared
+     * @var PriorityQueue
      */
-    public function __construct($alias, $item, $shared = false)
+    protected $_resolvedCallbacks;
+
+    /**
+     * {@inheritdoc}
+     */
+    public function __construct($item, bool $share = false)
     {
-        $this->_alias = $alias;
         $this->_item = $item;
-        $this->_shared = $shared;
+        $this->_share = $share;
+
+        $this->_resolvingCallbacks = new PriorityQueue;
+        $this->_resolvedCallbacks = new PriorityQueue;
+
+        $this->_setResolvedIfInstance();
     }
 
     /**
-     * Returns resolved item
-     *
-     * @param  array $arguments
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function make($arguments = [])
+    public function resolve(array $arguments = [])
     {
-        $instance = null;
-
-        // 1. Check if instance is shared and resolved, return if it does
-        if ($this->_shared === true && $this->_resolved !== null) {
+        if ($this->_resolved !== null) {
             return $this->_resolved;
-        }
+        } else {
+            $resolved = null;
 
-        // 2. If item is instance, we just set it as resolved and return
-        if (is_object($this->_item) && !($this->_item instanceof \Closure)) {
-            $this->_shared = true;
-            $this->_resolved = $this->_item;
-            $instance = $this->_item;
-        }
-
-        // 3. Check, if item is a closure we need to resolve
-        if ($this->_item instanceof \Closure) {
-            $instance = $this->_call($this->_item, null, $arguments);
-        }
-
-        // 4. Check, if item is a string
-        if (is_string($this->_item)) {
-            $instance = $this->_resolve($arguments);
-        }
-
-        // 5. If this is shared instance, save it for later use
-        if ($this->_shared === true) {
-            $this->_resolved = $instance;
-        }
-
-        return $instance;
-    }
-
-    /**
-     * Performs rewrite of definition
-     *
-     * @param  mixed $item
-     * @return void
-     */
-    public function rewrite($item)
-    {
-        $rewrite = (new Item(null, $item))->setContainer($this->_container)->make();
-        $active = $this->make();
-
-        if (is_object($rewrite) && is_object($active) && !($rewrite instanceof $active)) {
-            throw new \LogicException('Rewrite class' . get_class($rewrite) . ' should extend ' . get_class($active));
-        }
-
-        $this->_item = $item;
-        $this->_resolved = null;
-    }
-
-    /**
-     * Application setter
-     *
-     * @param  \Venta\Contracts\Container\ContainerContract $container
-     * @return $this
-     */
-    public function setContainer($container)
-    {
-        $this->_container = $container;
-
-        return $this;
-    }
-
-    /**
-     * Resolves DI definitions, returns resolved instance
-     *
-     * @param  array $arguments
-     * @return mixed
-     */
-    protected function _resolve($arguments)
-    {
-        if (interface_exists($this->_item)) {
-            return $this->_container->get($this->_item);
-        }
-
-        $definition = $this->_parseStringDefinition();
-        $reflection = new \ReflectionClass($definition['class']);
-        $instance = $reflection->newInstanceArgs($this->_getArguments($this->_getMethodParameters($reflection)));
-
-        return $definition['method'] === null ? $instance : $this->_call($instance, $definition['method'], $arguments);
-    }
-
-    /**
-     * Resolve and call specific method on resolved instance and return result
-     *
-     * @param  mixed $instance
-     * @param  string $method
-     * @param  array $arguments
-     * @return mixed
-     */
-    protected function _call($instance, $method, $arguments)
-    {
-        $data = $this->_normaliseCallArguments($instance, $method);
-
-        return call_user_func_array(
-            $data['callable'],
-            $this->_getArguments($data['parameters'], $arguments)
-        );
-    }
-
-    /**
-     * @param  \Closure|mixed $instance
-     * @param  string|null $method
-     * @return array
-     */
-    protected function _normaliseCallArguments($instance, $method)
-    {
-        if ($instance instanceof \Closure) {
-            return [
-                'callable' => $instance,
-                'parameters' => (new \ReflectionFunction($instance))->getParameters()
-            ];
-        }
-
-        return [
-            'callable' => [$instance, $method],
-            'parameters' => $this->_getMethodParameters(new \ReflectionObject($instance), $method)
-        ];
-    }
-
-    /**
-     * Returns array of resolved arguments, based on parameters array
-     *
-     * @param  \ReflectionParameter[]|array $parameters
-     * @param  array $defaultArguments
-     * @return array
-     */
-    protected function _getArguments($parameters, $defaultArguments = [])
-    {
-        $arguments = [];
-
-        foreach ($parameters as $parameter) {
-            if ($parameter->hasType()) {
-                $argument = (new Item(null, $parameter->getType()->__toString()))
-                    ->setContainer($this->_container)
-                    ->make();
-            } else {
-                if (array_key_exists($parameter->name, $defaultArguments)) {
-                    $argument = $defaultArguments[$parameter->name];
-                } else {
-                    $argument = $parameter->isOptional()
-                        ? $parameter->getDefaultValue()
-                        : null;
-                }
+            if (is_string($this->_item)) {
+                $resolved = $this->_resolveFromString($arguments);
+            }
+    
+            if ($this->_isClosure()) {
+                $resolved = $this->_resolveFromClosure($arguments);
             }
 
-            $arguments[] = $argument;
-        }
+            if ($this->_share) {
+                $this->_resolved = $resolved;
+            }
 
-        return $arguments;
+            return $resolved;
+        }
     }
 
     /**
-     * Returns method parameters out of reflection class
-     *
-     * @param  \ReflectionClass $reflection
-     * @param  string|null $method
-     * @return \ReflectionParameter[]
+     * {@inheritdoc}
      */
-    protected function _getMethodParameters($reflection, $method = null)
+    public function call(array $arguments = [])
     {
-        $default = [];
-
-        if ($method === null) {
-            return $reflection->getConstructor()
-                ? $reflection->getConstructor()->getParameters()
-                : $default;
+        if ($this->_isClosure()) {
+            return $this->_resolveFromClosure($arguments);
         }
 
-        return $reflection->hasMethod($method)
-            ? $reflection->getMethod($method)->getParameters()
-            : $default;
+        if (is_string($this->_item)) {
+            return $this->_resolveFromString($arguments);
+        }
+
+        throw new \LogicException(sprintf(
+            '%s method can not be called out of container',
+            $this->_item
+        ));
     }
 
     /**
-     * Parses string definition of an item and returns array with class and method names
-     *
-     * @return array
+     * {@inheritdoc}
      */
-    protected function _parseStringDefinition()
+    public function getResolvingItem()
     {
-        // 1. Check, if it is class@method definition
-        $exploded = array_filter(explode('@', $this->_item), function($item) {
-            return !!$item;
-        });
+        return $this->_item;
+    }
 
-        if (count($exploded) >= 2) {
-            return array_combine(['class', 'method'], array_slice($exploded, 0, 2));
+    /**
+     * Sets this container item as resolved, in case already created instance is passed in
+     */
+    protected function _setResolvedIfInstance()
+    {
+        if (is_object($this->_item) && !$this->_isClosure()) {
+            $this->_resolved = $this->_item;
+            $this->_share = true;
         }
+    }
 
-        return [
-            'class' => str_replace('@', '', $this->_item),
-            'method' => null
-        ];
+    /**
+     * Resolves item out of closure
+     *
+     * @param  array $arguments
+     * @return mixed
+     */
+    protected function _resolveFromClosure(array $arguments = [])
+    {
+        return (new ClosureResolver)->resolve($this, $arguments);
+    }
+
+    /**
+     * Resolves item from string definition
+     *
+     * @param  array $arguments
+     * @return mixed
+     */
+    protected function _resolveFromString(array $arguments = [])
+    {
+        return (new StringResolver)->resolve($this, $arguments);
+    }
+
+    /**
+     * Defines, if item is a Closure
+     *
+     * @return bool
+     */
+    protected function _isClosure(): bool
+    {
+        return $this->_item instanceof \Closure;
     }
 }

@@ -1,201 +1,173 @@
 <?php
 
-class ContainerTests extends \PHPUnit_Framework_TestCase
+/**
+ * Class ContainerTest
+ */
+class ContainerTest extends \PHPUnit_Framework_TestCase
 {
-    public function testCanTypeHintInterface()
+    /**
+     * @test
+     */
+    public function canResolveSimpleClass()
     {
-        $container = $this->_getContainer();
-        $stub = new \TestInterfaceImplementation(new \stdClass);
+        $container = new \Venta\Container\Container;
 
-        $container->share('TestInterface', $stub);
-        $container->share('test.interface', 'DIInterfaceClass');
-
-        $this->assertSame($stub, $container->make('test.interface')->getApplication());
+        $this->assertInstanceOf('stdClass', $container->make('stdClass'));
+        $this->assertInstanceOf('stdClass', $container->get('stdClass'));
     }
 
-    public function testCanBindStringInstanceToContainer()
+    /**
+     * @test
+     */
+    public function canResolveClassWithConstructorParameters()
     {
-        $container = $this->_getContainer();
+        $container = new \Venta\Container\Container;
 
-        $container->bind('test.class', '\stdClass');
-
-        $this->assertInternalType('object', $container->make('test.class'));
-        $this->assertInstanceOf('stdClass', $container->make('test.class'));
-        $this->assertNotSame($container->make('test.class'), $container->make('test.class'));
+        $this->assertInstanceOf('SimpleConstructorParametersClass', $container->make('SimpleConstructorParametersClass'));
+        $this->assertInstanceOf('stdClass', $container->get('SimpleConstructorParametersClass')->getItem());
     }
 
-    public function testCanBindStringSharedInstanceToContainer()
+    /**
+     * @test
+     */
+    public function canBindStringInstance()
     {
-        $container = $this->_getContainer();
+        $container = new \Venta\Container\Container;
 
-        $container->share('test.class', '\stdClass');
+        $container->bind('simple', 'stdClass');
+        $container->share('complex', 'SimpleConstructorParametersClass');
 
-        $this->assertSame($container->make('test.class'), $container->make('test.class'));
+        $this->assertTrue($container->has('complex'));
+        $this->assertFalse($container->has('non-existing'));
+        $this->assertInstanceOf('stdClass', $container->get('simple'));
+        $this->assertInstanceOf('SimpleConstructorParametersClass', $container->get('complex'));
+        $this->assertInstanceOf('stdClass', $container->get('complex')->getItem());
+        $this->assertSame($container->make('complex'), $container->get('complex'));
+        $this->assertNotSame($container->make('simple'), $container->get('simple'));
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Item "simple" already exists in container');
+        $container->bind('simple', 'stdClass');
     }
 
-
-    public function testCanResolveClosureBinding()
+    /**
+     * @test
+     */
+    public function canBindClosure()
     {
-        $container = $this->_getContainer();
+        $container = new \Venta\Container\Container;
 
-        $container->bind('test.class', function(){
-            return new \stdClass;
+        $container->bind('simple', function(\stdClass $item) {
+            return $item;
+        });
+        $container->share('complex', function(SimpleConstructorParametersClass $item) {
+            return $item;
         });
 
-        $this->assertInternalType('object', $container->make('test.class'));
-        $this->assertInstanceOf('\\stdClass', $container->make('test.class'));
+        $this->assertTrue($container->has('complex'));
+        $this->assertInstanceOf('stdClass', $container->get('simple'));
+        $this->assertInstanceOf('SimpleConstructorParametersClass', $container->get('complex'));
+        $this->assertInstanceOf('stdClass', $container->get('complex')->getItem());
+        $this->assertSame($container->make('complex'), $container->get('complex'));
+        $this->assertNotSame($container->make('simple'), $container->get('simple'));
     }
 
-    public function testCanBindInstanceToContainer()
+    /**
+     * @test
+     */
+    public function canBindInstance()
     {
-        $container = $this->_getContainer();
+        $container = new \Venta\Container\Container;
 
-        $container->bind('test.class', new \stdClass);
+        $container->bind('simple', new \stdClass);
+        $container->share('complex', new SimpleConstructorParametersClass(new \stdClass));
 
-        $this->assertNotNull($container->make('test.class'));
-        $this->assertSame($container->make('test.class'), $container->make('test.class'));
+        $this->assertTrue($container->has('complex'));
+        $this->assertInstanceOf('stdClass', $container->get('simple'));
+        $this->assertInstanceOf('SimpleConstructorParametersClass', $container->get('complex'));
+        $this->assertInstanceOf('stdClass', $container->get('complex')->getItem());
+        $this->assertSame($container->make('complex'), $container->get('complex'));
+        $this->assertSame($container->make('simple'), $container->get('simple'));
     }
 
-    public function testCanAutoInjectTypeHintedArguments()
+    /**
+     * @test
+     */
+    public function canCallMethodOutOfContainer()
     {
-        $container = $this->_getContainer();
+        $container = new \Venta\Container\Container;
 
-        $container->bind('test.di', 'DIStubClass');
-
-        $this->assertInstanceOf('DIStubClass', $container->make('test.di'));
-        $this->assertInstanceOf('stdClass', $container->make('test.di')->getItem());
-        $this->assertInstanceOf('DIInjectedStubClass', $container->make('test.di')->getClass());
-        $this->assertInstanceOf('stdClass', $container->make('test.di')->getClass()->getItem());
+        $this->assertInstanceOf('stdClass', $container->call('SimpleConstructorParametersClass@methodInjectTest'));
+        $this->assertNull($container->call('SimpleConstructorParametersClass@nonExistingMethod'));
     }
 
-    public function testCanResolveAndCallMethodOnTheClass()
+    /**
+     * @test
+     */
+    public function canCallClosureOutOfContainer()
     {
-        $container = $this->_getContainer();
+        $container = new \Venta\Container\Container;
 
-        $this->assertEquals(24, $container->call('DIStubClass@defineHoursInDay'));
-    }
-
-    public function testCanResolveAndCallMethodOnTheClassWithParameters()
-    {
-        $container = $this->_getContainer();
-
-        $this->assertEquals(24, $container->call('DIStubClass@defineHoursInXDays'));
-        $this->assertEquals(48, $container->call('DIStubClass@defineHoursInXDays', ['days' => 2]));
-        $this->assertEquals(96, $container->call('DIStubClass@defineHoursInXDays', ['days' => '4']));
-    }
-
-    public function testCanCallClosureResolved()
-    {
-        $container = $this->_getContainer();
-
-        $this->assertInstanceOf('\\stdClass', $container->call(function(\stdClass $item){
+        $this->assertInstanceOf('stdClass', $container->call(function(\stdClass $item) {
             return $item;
         }));
     }
 
-    public function testCanCallClosureResolvedWithArguments()
+    /**
+     * @test
+     */
+    public function wontCallAnythingElseExceptClosureAndString()
     {
-        $container = $this->_getContainer();
+        $this->expectException('LogicException');
+        $this->expectExceptionMessage('42 method can not be called out of container');
 
-        $this->assertEquals(16, $container->call(function($num, \stdClass $item){
-            return $num * $num;
-        }, ['num' => 4]));
+        (new \Venta\Container\Container)->call(42);
     }
 
     /**
-     * @expectedException \Venta\Container\Exceptions\RewriteException
+     * @test
      */
-    public function testCantRebindExistingDefinitionWithoutRewrite()
+    public function canDoTagging()
     {
-        $container = $this->_getContainer();
+        $container = new \Venta\Container\Container;
 
-        $container->bind('test.class', new \stdClass);
-        $container->bind('test.class', new \stdClass);
-    }
+        $container->bind('simple', 'stdClass');
+        $container->share('complex', 'SimpleConstructorParametersClass');
+        $container->tag(['simple', 'complex'], 'test');
 
-    public function testCanRewriteDefinition()
-    {
-        $container = $this->_getContainer();
-
-        $container->share('test.class', 'DIStubClass');
-        $container->rewrite('test.class', 'DIStubClassChild');
-
-        $this->assertInstanceOf('DIStubClassChild', $container->make('test.class'));
-        $this->assertSame($container->make('test.class'), $container->make('test.class'));
-    }
-
-    public function testCanResolveRegularClassName()
-    {
-        $container = $this->_getContainer();
-
-        $this->assertInstanceOf('\stdClass', $container->make('\stdClass'));
-    }
-
-    public function testCanCallMissedMethodDefinition()
-    {
-        $container = $this->_getContainer();
-
-        $this->assertInstanceOf('\stdClass', $container->call('\stdClass@'));
-        $this->assertInstanceOf('\stdClass', $container->call('DIStubClass@')->getItem());
-        $this->assertEquals(24, $container->call('DIStubClass@defineHoursInDay@wrong'));
-    }
-
-    public function testCanResolveInterface()
-    {
-        $container = $this->_getContainer();
-
-        $container->bind('TestInterface', 'TestInterfaceImplementation');
-
-        $this->assertInstanceOf('TestInterfaceImplementation', $container->make('TestInterface'));
-        $this->assertInstanceOf('\stdClass', $container->make('TestInterface')->getItem());
+        $this->assertTrue(is_array($container->tagged('test')));
+        $this->assertCount(2, $container->tagged('test'));
+        $this->assertInstanceOf('stdClass', $container->tagged('test')[0]);
+        $this->assertInstanceOf('SimpleConstructorParametersClass', $container->tagged('test')[1]);
+        $this->assertSame($container->tagged('test')[1], $container->tagged('test')[1]);
+        $this->assertNotSame($container->tagged('test')[0], $container->tagged('test')[0]);
+        $this->assertCount(0, $container->tagged('another-test'));
     }
 
     /**
-     * @expectedException \Venta\Container\Exceptions\InterfaceBindingException
+     * @test
      */
-    public function testWontBindInterfaceImplementationIfNoImplement()
-    {
-        $container = $this->_getContainer();
+    public function canResolveWithManualArguments()
+    {   
+        $container = new \Venta\Container\Container;
+        $stub = new class extends \stdClass {};
+        $resolved = $container->make('SimpleConstructorParametersClass', ['integer' => 42, 'item' => $stub]);
 
-        $container->bind('TestInterface', '\stdClass');
+        $this->assertInstanceOf('stdClass', $resolved->getItem());
+        $this->assertEquals(42, $resolved->getInteger());
+        $this->assertSame($stub, $resolved->getItem());
+        $this->assertSame($stub, $container->call('SimpleConstructorParametersClass@methodInjectTest', ['item' => $stub]));
     }
 
     /**
-     * @expectedException \Venta\Container\Exceptions\NotFoundException
+     * @test
      */
-    public function testExceptionIfItemCanNotBeResolved()
+    public function canUseTrait()
     {
-        $this->_getContainer()->make('non.existing.item');
-    }
+        $container = new \Venta\Container\Container;
+        $instance = new class { use \Venta\Container\Traits\ContainerAwareTrait; };
 
-    /**
-     * @expectedException \LogicException
-     */
-    public function testCantRewriteNonExistingAlias()
-    {
-        $container = $this->_getContainer();
-
-        $container->rewrite('test.class', '\\stdClass');
-    }
-
-    /**
-     * @expectedException \LogicException
-     */
-    public function testCantRewriteNonChildren()
-    {
-        $container = $this->_getContainer();
-
-        $container->bind('test.class', 'DIStubClass');
-        $container->rewrite('test.class', '\\stdClass');
-    }
-
-    /**
-     * Returns container instance
-     *
-     * @return \Venta\Contracts\Container\ContainerContract
-     */
-    protected function _getContainer()
-    {
-        return new \Venta\Container\Container;
+        $instance->setContainer($container);
+        $this->assertSame($container, $instance->getContainer());
     }
 }

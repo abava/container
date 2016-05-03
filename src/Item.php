@@ -3,18 +3,22 @@
 namespace Venta\Container;
 
 use Ds\PriorityQueue;
-use Venta\Container\Exceptions\RewriteException;
 use Venta\Container\Resolver\ClosureResolver;
 use Venta\Container\Resolver\StringResolver;
 use Venta\Contracts\Container\ItemContract;
+use Venta\Contracts\Event\EventContract;
+use Venta\Contracts\Event\EventsDispatcherAwareContract;
+use Venta\Event\Traits\EventDispatcherAwareTrait;
 
 /**
  * Class Item
  *
  * @package Venta\Container
  */
-class Item implements ItemContract
+class Item implements ItemContract, EventsDispatcherAwareContract
 {
+    use EventDispatcherAwareTrait;
+
     /**
      * Item holder
      *
@@ -30,6 +34,13 @@ class Item implements ItemContract
     protected $_share;
 
     /**
+     * Item string alias
+     *
+     * @var string
+     */
+    protected $_alias;
+
+    /**
      * Resolved instance holder for shared items
      *
      * @var null|mixed
@@ -37,26 +48,13 @@ class Item implements ItemContract
     protected $_resolved;
 
     /**
-     * Callbacks to be run on item resolving
-     *
-     * @var PriorityQueue
-     */
-    protected $_resolvingCallbacks;
-
-    /**
-     * Callbacks to be run after item is resolved
-     *
-     * @var PriorityQueue
-     */
-    protected $_resolvedCallbacks;
-
-    /**
      * {@inheritdoc}
      */
-    public function __construct($item, bool $share = false)
+    public function __construct($item, bool $share = false, string $alias = null)
     {
         $this->_item = $item;
         $this->_share = $share;
+        $this->_alias = $alias;
 
         $this->_resolvingCallbacks = new PriorityQueue;
         $this->_resolvedCallbacks = new PriorityQueue;
@@ -81,6 +79,8 @@ class Item implements ItemContract
             if ($this->_isClosure()) {
                 $resolved = $this->_resolveFromClosure($arguments);
             }
+            
+            $resolved = $this->_fireResolvingCallbacks($resolved);
 
             if ($this->_share) {
                 $this->_resolved = $resolved;
@@ -158,5 +158,41 @@ class Item implements ItemContract
     protected function _isClosure(): bool
     {
         return $this->_item instanceof \Closure;
+    }
+
+    /**
+     * Fires resolving callback for item
+     * 
+     * @param  mixed $resolvedItem
+     * @return mixed
+     */
+    protected function _fireResolvingCallback($resolvedItem)
+    {
+        return $this->getEventsDispatcher()->dispatch('resolving: ' . $this->_alias, ['resolving' => $resolvedItem])
+            ->getData('resolving');
+    }
+
+    /**
+     * Fire resolved callbacks
+     *
+     * @param  mixed $resolvedItem
+     */
+    protected function _fireResolvedCallback($resolvedItem)
+    {
+        $this->getEventsDispatcher()->dispatch('resolved: ' . $this->_alias, ['resolved' => $resolvedItem]);
+    }
+
+    /**
+     * Fires callbacks after/in item resolving
+     *
+     * @param  mixed $resolvedItem
+     * @return mixed
+     */
+    protected function _fireResolvingCallbacks($resolvedItem)
+    {
+        $resolvedItem = $this->_fireResolvingCallback($resolvedItem);
+        $this->_fireResolvedCallback($resolvedItem);
+
+        return $resolvedItem;
     }
 }

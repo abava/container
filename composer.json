@@ -11,6 +11,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/ventacommerce/contracts.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/ventacommerce/event.git"
         }
     ],
     "autoload": {
@@ -24,6 +28,7 @@
     },
     "require": {
         "venta/contracts": "dev-master",
+        "venta/event": "dev-master",
         "php-ds/php-ds": "dev-master"
     }
 }

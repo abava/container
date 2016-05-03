@@ -170,4 +170,33 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $instance->setContainer($container);
         $this->assertSame($container, $instance->getContainer());
     }
+
+    /**
+     * @test
+     */
+    public function canRunResolvingCallbacks()
+    {
+        $container = new \Venta\Container\Container;
+
+        $container->resolving(\stdClass::class, function() {
+            return new RewriteTestClass;
+        });
+
+        $this->assertInstanceOf(RewriteTestClass::class, $container->make('stdClass'));
+    }
+
+    /**
+     * @test
+     */
+    public function canFireResolvedCallbacks()
+    {
+        $container = new \Venta\Container\Container;
+
+        $container->resolved(RewriteTestClass::class, function($object) {
+            $object->setValue('value');
+        });
+
+        $this->assertInstanceOf('RewriteTestClass', $container->make('RewriteTestClass'));
+        $this->assertEquals('value', $container->make('RewriteTestClass')->getValue());
+    }
 }

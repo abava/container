@@ -167,6 +167,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $container = new \Venta\Container\Container;
         $instance = new class { use \Venta\Container\Traits\ContainerAwareTrait; };
 
+        $this->assertInstanceOf(\Venta\Contracts\Container\ContainerContract::class, $instance->getContainer());
         $instance->setContainer($container);
         $this->assertSame($container, $instance->getContainer());
     }

@@ -2,6 +2,7 @@
 
 namespace Venta\Container\Traits;
 
+use Venta\Container\Container;
 use Venta\Contracts\Container\ContainerContract;
 
 /**
@@ -31,6 +32,10 @@ trait ContainerAwareTrait
      */
     public function getContainer(): ContainerContract
     {
+        if ($this->_container === null) {
+            $this->_container = new Container;
+        }
+
         return $this->_container;
     }
 }

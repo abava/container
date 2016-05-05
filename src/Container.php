@@ -2,21 +2,18 @@
 
 namespace Venta\Container;
 
+use Venta\Container\Callback\Manager;
+use Venta\Contracts\Container\CallbackManagerContract;
 use Venta\Contracts\Container\ContainerContract;
 use Venta\Contracts\Container\ItemContract;
-use Venta\Contracts\Event\EventContract;
-use Venta\Contracts\Event\EventsDispatcherAwareContract;
-use Venta\Event\Traits\EventDispatcherAwareTrait;
 
 /**
  * Class Container
  *
  * @package Venta\Container
  */
-class Container implements ContainerContract, EventsDispatcherAwareContract
+class Container implements ContainerContract
 {
-    use EventDispatcherAwareTrait;
-
     /**
      * Internal container holder
      *
@@ -30,6 +27,13 @@ class Container implements ContainerContract, EventsDispatcherAwareContract
      * @var array
      */
     protected $_tags = [];
+
+    /**
+     * Callbacks manager holder
+     *
+     * @var CallbackManagerContract
+     */
+    protected $_callbacks;
 
     /**
      * {@inheritdoc}
@@ -124,33 +128,15 @@ class Container implements ContainerContract, EventsDispatcherAwareContract
      */
     public function resolving(string $className, \Closure $callback)
     {
-        $this->getEventsDispatcher()->observe('resolving: ' . $className, function(EventContract $event) use ($callback) {
-            $latest = $event->getData('resolving');
-            $changed = $callback($latest, $this);
-
-            if ($changed === null) {
-                $changed = $latest;
-            }
-
-            if ($this->_checkRewrite($changed, $latest) && !($changed instanceof $latest)) {
-                throw new \LogicException(sprintf(
-                    'Class %s should extend %s in order to be rewritten',
-                    get_class($changed), get_class($latest)
-                ));
-            }
-
-            $event->setData('resolving', $changed);
-        });
+        $this->_getCallbacksManager()->resolving($className, $callback);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function resolved(string $className, \Closure $callback = null)
+    public function resolved(string $className, \Closure $callback)
     {
-        $this->getEventsDispatcher()->observe('resolved: ' . $className, function(EventContract $event) use ($callback) {
-            $callback($event->getData('resolved'), $this);
-        });
+        $this->_getCallbacksManager()->resolved($className, $callback);
     }
 
     /**
@@ -163,21 +149,23 @@ class Container implements ContainerContract, EventsDispatcherAwareContract
      */
     protected function _createContainerItem($item, bool $share = false, string $alias = null): ItemContract
     {
-        $containerItem = new Item($item, $share, $alias);
-        $containerItem->setEventsDispatcher($this->getEventsDispatcher());
+        $item = new Item($item, $share, $alias);
+        $item->setCallbacksManager($this->_getCallbacksManager());
 
-        return $containerItem;
+        return $item;
     }
 
     /**
-     * Defines, if rewrite can happen
+     * Returns callbacks manager instance
      *
-     * @param  mixed $rewrite
-     * @param  mixed $latest
-     * @return bool
+     * @return CallbackManagerContract
      */
-    protected function _checkRewrite($rewrite, $latest)
+    protected function _getCallbacksManager(): CallbackManagerContract
     {
-        return is_object($rewrite) && is_object($latest) && $rewrite !== $latest;
+        if ($this->_callbacks === null) {
+            $this->_callbacks = new Manager;
+        }
+
+        return $this->_callbacks;
     }
 }

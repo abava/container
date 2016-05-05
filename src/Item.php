@@ -5,6 +5,8 @@ namespace Venta\Container;
 use Ds\PriorityQueue;
 use Venta\Container\Resolver\ClosureResolver;
 use Venta\Container\Resolver\StringResolver;
+use Venta\Container\Traits\ContainerAwareTrait;
+use Venta\Contracts\Container\CallbackManagerContract;
 use Venta\Contracts\Container\ItemContract;
 use Venta\Contracts\Event\EventContract;
 use Venta\Contracts\Event\EventsDispatcherAwareContract;
@@ -15,10 +17,8 @@ use Venta\Event\Traits\EventDispatcherAwareTrait;
  *
  * @package Venta\Container
  */
-class Item implements ItemContract, EventsDispatcherAwareContract
+class Item implements ItemContract
 {
-    use EventDispatcherAwareTrait;
-
     /**
      * Item holder
      *
@@ -48,6 +48,20 @@ class Item implements ItemContract, EventsDispatcherAwareContract
     protected $_resolved;
 
     /**
+     * Defines, if resolving callbacks should be postponed
+     *
+     * @var bool
+     */
+    protected $_defferCallbacks = false;
+
+    /**
+     * Callbacks manager holder
+     *
+     * @var CallbackManagerContract
+     */
+    protected $_callbacksManager;
+
+    /**
      * {@inheritdoc}
      */
     public function __construct($item, bool $share = false, string $alias = null)
@@ -55,9 +69,6 @@ class Item implements ItemContract, EventsDispatcherAwareContract
         $this->_item = $item;
         $this->_share = $share;
         $this->_alias = $alias;
-
-        $this->_resolvingCallbacks = new PriorityQueue;
-        $this->_resolvedCallbacks = new PriorityQueue;
 
         $this->_setResolvedIfInstance();
     }
@@ -68,6 +79,11 @@ class Item implements ItemContract, EventsDispatcherAwareContract
     public function resolve(array $arguments = [])
     {
         if ($this->_resolved !== null) {
+            if ($this->_defferCallbacks) {
+                $this->_resolved = $this->_fireResolvingCallbacks($this->_resolved);
+                $this->_defferCallbacks = false;
+            }
+
             return $this->_resolved;
         } else {
             $resolved = null;
@@ -118,6 +134,14 @@ class Item implements ItemContract, EventsDispatcherAwareContract
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function setCallbacksManager(CallbackManagerContract $manager)
+    {
+        $this->_callbacksManager = $manager;
+    }
+
+    /**
      * Sets this container item as resolved, in case already created instance is passed in
      */
     protected function _setResolvedIfInstance()
@@ -125,6 +149,7 @@ class Item implements ItemContract, EventsDispatcherAwareContract
         if (is_object($this->_item) && !$this->_isClosure()) {
             $this->_resolved = $this->_item;
             $this->_share = true;
+            $this->_defferCallbacks = true;
         }
     }
 
@@ -161,28 +186,6 @@ class Item implements ItemContract, EventsDispatcherAwareContract
     }
 
     /**
-     * Fires resolving callback for item
-     * 
-     * @param  mixed $resolvedItem
-     * @return mixed
-     */
-    protected function _fireResolvingCallback($resolvedItem)
-    {
-        return $this->getEventsDispatcher()->dispatch('resolving: ' . $this->_alias, ['resolving' => $resolvedItem])
-            ->getData('resolving');
-    }
-
-    /**
-     * Fire resolved callbacks
-     *
-     * @param  mixed $resolvedItem
-     */
-    protected function _fireResolvedCallback($resolvedItem)
-    {
-        $this->getEventsDispatcher()->dispatch('resolved: ' . $this->_alias, ['resolved' => $resolvedItem]);
-    }
-
-    /**
      * Fires callbacks after/in item resolving
      *
      * @param  mixed $resolvedItem
@@ -190,8 +193,9 @@ class Item implements ItemContract, EventsDispatcherAwareContract
      */
     protected function _fireResolvingCallbacks($resolvedItem)
     {
-        $resolvedItem = $this->_fireResolvingCallback($resolvedItem);
-        $this->_fireResolvedCallback($resolvedItem);
+        if ($this->_callbacksManager !== null) {
+            return $this->_callbacksManager->fireCallbacks($resolvedItem, $this->_alias);
+        }
 
         return $resolvedItem;
     }

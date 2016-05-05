@@ -26,6 +26,8 @@ class SimpleConstructorParametersClass
 
 class RewriteTestClass extends \stdClass
 {
+    protected $_value;
+
     public function setValue($value)
     {
         $this->_value = $value;

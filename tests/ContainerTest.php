@@ -148,7 +148,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      * @test
      */
     public function canResolveWithManualArguments()
-    {   
+    {
         $container = new \Venta\Container\Container;
         $stub = new class extends \stdClass {};
         $resolved = $container->make('SimpleConstructorParametersClass', ['integer' => 42, 'item' => $stub]);
@@ -179,11 +179,32 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         $container = new \Venta\Container\Container;
 
+        $container->resolving(\stdClass::class, function() {});
         $container->resolving(\stdClass::class, function() {
             return new RewriteTestClass;
         });
 
         $this->assertInstanceOf(RewriteTestClass::class, $container->make('stdClass'));
+    }
+
+    /**
+     * @test
+     */
+    public function willFailOnWrongRewrite()
+    {
+        $container = new \Venta\Container\Container;
+
+        $container->resolving(\stdClass::class, function() {
+            return new \Venta\Container\Container;
+        });
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(sprintf(
+            'Class %s should extend %s in order to be rewritten',
+            \Venta\Container\Container::class, stdClass::class
+        ));
+
+        $container->make('stdClass');
     }
 
     /**

@@ -151,10 +151,10 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         $container = new \Venta\Container\Container;
         $stub = new class extends \stdClass {};
-        $resolved = $container->make('SimpleConstructorParametersClass', ['integer' => 42, 'item' => $stub]);
+        $resolved = $container->make('SimpleConstructorParametersClass', ['item' => $stub]);
 
         $this->assertInstanceOf('stdClass', $resolved->getItem());
-        $this->assertEquals(42, $resolved->getInteger());
+        $this->assertEquals(0, $resolved->getInteger());
         $this->assertSame($stub, $resolved->getItem());
         $this->assertSame($stub, $container->call('SimpleConstructorParametersClass@methodInjectTest', ['item' => $stub]));
     }

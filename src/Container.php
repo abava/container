@@ -96,6 +96,28 @@ class Container implements ContainerContract
     /**
      * {@inheritdoc}
      */
+    public function alias(string $alias, string $containerItem)
+    {
+        if ($this->has($alias)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Alias "%s" is already registered',
+                $alias
+            ));
+        }
+
+        if (!$this->has($containerItem)) {
+            throw new \InvalidArgumentException(sprintf(
+                '"%s" can not be aliased. Item does not exist in container',
+                $containerItem
+            ));
+        }
+
+        $this->_container[$alias] = $this->_container[$containerItem];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function tag(array $items, string $tag)
     {
         if (!array_key_exists($tag, $this->_tags)) {

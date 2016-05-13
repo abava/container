@@ -221,4 +221,49 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf('RewriteTestClass', $container->make('RewriteTestClass'));
         $this->assertEquals('value', $container->make('RewriteTestClass')->getValue());
     }
+
+    /**
+     * @test
+     */
+    public function canAliasItems()
+    {
+        $container = new \Venta\Container\Container;
+
+        $container->share('simple', 'stdClass');
+        $container->bind('singleton', 'stdClass');
+
+        $container->alias('alias', 'simple');
+        $container->alias('new-name', 'singleton');
+
+        $this->assertSame($container->make('simple'), $container->make('alias'));
+        $this->assertNotSame($container->make('new-name'), $container->make('singleton'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCheckIfItemExistBeforeAliasing()
+    {
+        $container = new \Venta\Container\Container;
+
+        $container->bind('simple', 'stdClass');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('"no-item" can not be aliased. Item does not exist in container');
+        $container->alias('no-name', 'no-item');
+    }
+
+    /**
+     * @test
+     */
+    public function canCheckIfAliasExistBeforeAliasing()
+    {
+        $container = new \Venta\Container\Container;
+
+        $container->bind('simple', 'stdClass');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Alias "simple" is already registered');
+        $container->alias('simple', 'no-item');
+    }
 }

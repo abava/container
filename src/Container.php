@@ -2,192 +2,234 @@
 
 namespace Venta\Container;
 
-use Venta\Container\Callback\Manager;
-use Venta\Contracts\Container\CallbackManagerContract;
-use Venta\Contracts\Container\ContainerContract;
-use Venta\Contracts\Container\ItemContract;
-
 /**
  * Class Container
  *
  * @package Venta\Container
  */
-class Container implements ContainerContract
+class Container
 {
     /**
-     * Internal container holder
-     *
-     * @var Item[]
-     */
-    protected $_container = [];
-
-    /**
-     * Tags holder
+     * Array of container item keys
      *
      * @var array
      */
-    protected $_tags = [];
+    protected $keys = [];
 
     /**
-     * Callbacks manager holder
+     * Array of defined instances
      *
-     * @var CallbackManagerContract
+     * @var array
      */
-    protected $_callbacks;
+    protected $instances = [];
 
     /**
-     * {@inheritdoc}
+     * Array of shared instances keys
+     *
+     * @var array
      */
-    public function bind(string $alias, $item, bool $share = false)
-    {
-        if (!$this->has($alias)) {
-            $this->_container[$alias] = $this->_createContainerItem($item, $share, $alias);
-        } else {
-            throw new \InvalidArgumentException(sprintf(
-                'Item "%s" already exists in container', $alias
-            ));
-        }
-    }
+    protected $shared = [];
 
     /**
-     * {@inheritdoc}
+     * Array of bindings
+     *
+     * @var array
      */
-    public function share(string $alias, $item)
-    {
-        $this->bind($alias, $item, true);
-    }
+    protected $bindings = [];
 
     /**
-     * {@inheritdoc}
+     * Array of created container item factories
+     *
+     * @var array
      */
-    public function has(string $alias): bool
-    {
-        return array_key_exists($alias, $this->_container);
-    }
+    protected $factories = [];
 
     /**
-     * {@inheritdoc}
+     * Bind element to container
+     *
+     * @param string $abstract
+     * @param mixed  $concrete
      */
-    public function call($method, array $arguments = [])
+    public function bind(string $abstract, $concrete)
     {
-        return $this->_createContainerItem($method)->call($arguments);
-    }
+        $abstract = $this->normalizeClassName($abstract);
 
-    /**
-     * {@inheritdoc}
-     */
-    public function make(string $alias, array $arguments = [])
-    {
-        if ($this->has($alias)) {
-            return $this->_container[$alias]->resolve($arguments);
-        }
-        
-        return $this->_createContainerItem($alias, false, $alias)->resolve($arguments);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function get($id, array $arguments = [])
-    {
-        return $this->make($id, $arguments);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function alias(string $alias, string $containerItem)
-    {
-        if ($this->has($alias)) {
-            throw new \InvalidArgumentException(sprintf(
-                'Alias "%s" is already registered',
-                $alias
-            ));
+        if ($this->has($abstract)) {
+            throw new \InvalidArgumentException(sprintf('Container item "%s" is already defined', $abstract));
         }
 
-        if (!$this->has($containerItem)) {
-            throw new \InvalidArgumentException(sprintf(
-                '"%s" can not be aliased. Item does not exist in container',
-                $containerItem
-            ));
-        }
-
-        $this->_container[$alias] = $this->_container[$containerItem];
+        $this->keys[$abstract] = true;
+        $this->bindings[$abstract] = $concrete;
     }
 
     /**
-     * {@inheritdoc}
+     * Add shared instance to container
+     *
+     * @param string   $abstract
+     * @param mixed    $concrete
      */
-    public function tag(array $items, string $tag)
+    public function singleton(string $abstract, $concrete)
     {
-        if (!array_key_exists($tag, $this->_tags)) {
-            $this->_tags[$tag] = [];
+        $abstract = $this->normalizeClassName($abstract);
+
+        if ($this->has($abstract)) {
+            throw new \InvalidArgumentException(sprintf('Container item "%s" is already defined', $abstract));
         }
 
-        $this->_tags[$tag] += $items;
+        $this->keys[$abstract] = true;
+        $this->shared[$abstract] = true;
+        $this->bindings[$abstract] = $concrete;
     }
 
     /**
-     * {@inheritdoc}
+     * Add instance to container
+     *
+     * @param string $abstract
+     * @param mixed  $concrete
      */
-    public function tagged(string $tag): array
+    public function instance(string $abstract, $concrete)
     {
-        if (array_key_exists($tag, $this->_tags)) {
-            $results = [];
+        $abstract = $this->normalizeClassName($abstract);
 
-            foreach ($this->_tags[$tag] as $item) {
-                array_push($results, $this->make($item));
+        if ($this->has($abstract)) {
+            throw new \InvalidArgumentException(sprintf('Container item "%s" is already defined', $abstract));
+        }
+
+        if (!is_object($concrete) || $concrete instanceof \Closure) {
+            throw new \InvalidArgumentException(sprintf('Passed item is not an instance for container item "%s"', $abstract));
+        }
+
+        $this->keys[$abstract] = true;
+        $this->shared[$abstract] = true;
+        $this->instances[$abstract] = $concrete;
+    }
+
+    /**
+     * Defines, if item exists in container
+     *
+     * @param  string $abstract
+     * @return bool
+     */
+    public function has($abstract): bool
+    {
+        return isset($this->keys[$abstract]);
+    }
+
+    /**
+     * Main container getter
+     *
+     * @param  string $abstract
+     * @return mixed
+     */
+    public function make(string $abstract)
+    {
+        $abstract = $this->normalizeClassName($abstract);
+
+        if (isset($this->instances[$abstract])) {
+            return $this->instances[$abstract];
+        }
+
+        if (!isset($this->factories[$abstract])) {
+            $concrete = isset($this->bindings[$abstract]) ? $this->bindings[$abstract] : $abstract;
+            $this->factories[$abstract] = $this->getFactory($abstract, $concrete);
+        }
+
+        return $this->factories[$abstract]();
+    }
+
+    /**
+     * Normalize class name, if it is string
+     *
+     * @param  mixed $class
+     * @return mixed
+     */
+    protected function normalizeClassName($class)
+    {
+        return is_string($class) ? ltrim($class, '\\') : $class;
+    }
+
+    /**
+     * Returns initialisation factory for objects
+     *
+     * @param  string $abstract
+     * @param  mixed  $concrete
+     * @return \Closure
+     */
+    protected function getFactory(string $abstract, $concrete): \Closure
+    {
+        if (!is_string($concrete) && !($concrete instanceof \Closure)) {
+            throw new \InvalidArgumentException(sprintf('Can not resolve this type of binding: "%s"', $concrete));
+        }
+
+        if (is_string($concrete)) {
+            $concrete = $this->build($concrete);
+        }
+
+        return function () use ($abstract, $concrete) {
+            $instance = $concrete($this);
+
+            if (isset($this->shared[$abstract])) {
+                $this->instances[$abstract] = $instance;
             }
 
-            return $results;
-        }
-
-        return [];
+            return $instance;
+        };
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function resolving(string $className, \Closure $callback)
-    {
-        $this->_getCallbacksManager()->resolving($className, $callback);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function resolved(string $className, \Closure $callback)
-    {
-        $this->_getCallbacksManager()->resolved($className, $callback);
-    }
-
-    /**
-     * Helper function for creating container item
+     * Builds object from scratch with DI
      *
-     * @param  mixed $item
-     * @param  bool $share
-     * @param  string $alias
-     * @return ItemContract
+     * @param  string $class
+     * @return mixed
      */
-    protected function _createContainerItem($item, bool $share = false, string $alias = null): ItemContract
+    protected function build(string $class)
     {
-        $item = new Item($item, $share, $alias);
-        $item->setCallbacksManager($this->_getCallbacksManager());
+        $reflection = new \ReflectionClass($class);
+        $constructor = $reflection->getConstructor();
+        $arguments = $this->buildArguments($constructor);
 
-        return $item;
+        return function () use ($reflection, $constructor, $arguments) {
+            $instance = $reflection->newInstanceWithoutConstructor();
+
+            if ($constructor) {
+                $constructor->invokeArgs($instance, $arguments());
+            }
+
+            return $instance;
+        };
     }
 
     /**
-     * Returns callbacks manager instance
+     * Build up arguments array for provided method
      *
-     * @return CallbackManagerContract
+     * @param \ReflectionMethod|null $method
+     * @return \Closure
      */
-    protected function _getCallbacksManager(): CallbackManagerContract
+    protected function buildArguments(\ReflectionMethod $method = null): \Closure
     {
-        if ($this->_callbacks === null) {
-            $this->_callbacks = new Manager;
-        }
+        $parameters = $method === null ? [] : array_map(function(\ReflectionParameter $parameter) {
+            return [$parameter, $parameter->getClass() ? $parameter->getClass()->name : null];
+        }, $method->getParameters());
 
-        return $this->_callbacks;
+        return function () use ($parameters) {
+            $arguments = [];
+
+            foreach ($parameters as list($parameter, $class)) {
+                /** @var \ReflectionParameter $parameter */
+                $value = null;
+
+                if ($class !== null) {
+                    $value = $this->make($class);
+                }
+
+                if ($parameter->isDefaultValueAvailable()) {
+                    $value = $parameter->getDefaultValue();
+                }
+
+                $arguments[] = $value;
+            }
+
+            return $arguments;
+        };
     }
 }

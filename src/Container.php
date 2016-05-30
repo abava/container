@@ -45,6 +45,13 @@ class Container
     protected $factories = [];
 
     /**
+     * Array of closure keys
+     *
+     * @var array
+     */
+    protected $closures = [];
+
+    /**
      * Bind element to container
      *
      * @param string $abstract
@@ -60,6 +67,10 @@ class Container
 
         $this->keys[$abstract] = true;
         $this->bindings[$abstract] = $concrete;
+
+        if ($concrete instanceof \Closure) {
+            $this->closures[$abstract] = true;
+        }
     }
 
     /**
@@ -70,38 +81,9 @@ class Container
      */
     public function singleton(string $abstract, $concrete)
     {
-        $abstract = $this->normalizeClassName($abstract);
+        $this->bind($abstract, $concrete);
 
-        if ($this->has($abstract)) {
-            throw new \InvalidArgumentException(sprintf('Container item "%s" is already defined', $abstract));
-        }
-
-        $this->keys[$abstract] = true;
-        $this->shared[$abstract] = true;
-        $this->bindings[$abstract] = $concrete;
-    }
-
-    /**
-     * Add instance to container
-     *
-     * @param string $abstract
-     * @param mixed  $concrete
-     */
-    public function instance(string $abstract, $concrete)
-    {
-        $abstract = $this->normalizeClassName($abstract);
-
-        if ($this->has($abstract)) {
-            throw new \InvalidArgumentException(sprintf('Container item "%s" is already defined', $abstract));
-        }
-
-        if (!is_object($concrete) || $concrete instanceof \Closure) {
-            throw new \InvalidArgumentException(sprintf('Passed item is not an instance for container item "%s"', $abstract));
-        }
-
-        $this->keys[$abstract] = true;
-        $this->shared[$abstract] = true;
-        $this->instances[$abstract] = $concrete;
+        $this->shared[$this->resolveAlias($this->normalizeClassName($abstract))] = true;
     }
 
     /**
@@ -119,117 +101,181 @@ class Container
      * Main container getter
      *
      * @param  string $abstract
+     * @param  array  $args
      * @return mixed
      */
-    public function make(string $abstract)
+    public function make(string $abstract, array $args = [])
     {
-        $abstract = $this->normalizeClassName($abstract);
+        $abstract = $this->resolveAlias($this->normalizeClassName($abstract));
 
         if (isset($this->instances[$abstract])) {
             return $this->instances[$abstract];
         }
 
         if (!isset($this->factories[$abstract])) {
-            $concrete = isset($this->bindings[$abstract]) ? $this->bindings[$abstract] : $abstract;
-            $this->factories[$abstract] = $this->getFactory($abstract, $concrete);
+            $this->factories[$abstract] = isset($this->closures[$abstract])
+                ? $this->getClosureFactory($this->bindings[$abstract], $abstract)
+                : $this->getFactory($abstract);
         }
 
-        return $this->factories[$abstract]();
+        return $this->factories[$abstract]($args);
+    }
+
+    /**
+     * Resolve and call \Closure out of container
+     *
+     * @param  \Closure|string $callable
+     * @param  array $args
+     * @return mixed
+     */
+    public function call($callable, array $args = [])
+    {
+        $factory = $this->getCallableFactory($callable);
+
+        return $factory($args);
     }
 
     /**
      * Normalize class name, if it is string
      *
-     * @param  mixed $class
-     * @return mixed
+     * @param  string $class
+     * @return string
      */
-    protected function normalizeClassName($class)
+    protected function normalizeClassName(string $class): string
     {
-        return is_string($class) ? ltrim($class, '\\') : $class;
+        return ltrim($class, '\\');
+    }
+
+    /**
+     * Resolves container aliases into real items
+     *
+     * @param  string $alias
+     * @return string
+     */
+    protected function resolveAlias(string $alias): string
+    {
+        if (
+            isset($this->keys[$alias]) &&
+            (isset($this->bindings[$alias]) && is_string($this->bindings[$alias]))
+        ) {
+            return $this->bindings[$alias];
+        }
+
+        return $alias;
+    }
+
+    /**
+     * Returns closure binding resolving function
+     *
+     * @param \Closure $closure
+     * @param  string   $abstract
+     * @return \Closure
+     */
+    protected function getClosureFactory(\Closure $closure, string $abstract): \Closure
+    {
+        if (isset($this->shared[$abstract])) {
+            return function () use ($closure, $abstract) {
+                $this->instances[$abstract] = $closure($this);
+
+                return $this->instances[$abstract];
+            };
+        }
+
+        return function () use ($closure) {
+            return $closure($this);
+        };
     }
 
     /**
      * Returns initialisation factory for objects
      *
      * @param  string $abstract
-     * @param  mixed  $concrete
      * @return \Closure
      */
-    protected function getFactory(string $abstract, $concrete): \Closure
+    protected function getFactory(string $abstract): \Closure
     {
-        if (!is_string($concrete) && !($concrete instanceof \Closure)) {
-            throw new \InvalidArgumentException(sprintf('Can not resolve this type of binding: "%s"', $concrete));
+        $class = new \ReflectionClass($abstract);
+        $constructor = $class->getConstructor();
+        $arguments = $constructor ? $this->createArguments($constructor) : null;
+
+        if (isset($this->shared[$abstract])) {
+            return function (array $args = []) use ($abstract, $class, $constructor, $arguments) {
+                $this->instances[$abstract] = $class->newInstanceWithoutConstructor();
+
+                if ($constructor) {
+                    $constructor->invokeArgs($this->instances[$abstract], $arguments($args));
+                }
+
+                return $this->instances[$abstract];
+            };
+        } else if ($arguments !== null) {
+            return function (array $args = []) use ($class, $arguments) {
+                return new $class->name(...$arguments($args));
+            };
         }
 
-        if (is_string($concrete)) {
-            $concrete = $this->build($concrete);
-        }
-
-        return function () use ($abstract, $concrete) {
-            $instance = $concrete($this);
-
-            if (isset($this->shared[$abstract])) {
-                $this->instances[$abstract] = $instance;
-            }
-
-            return $instance;
+        return function () use ($class) {
+            return new $class->name;
         };
     }
 
     /**
-     * Builds object from scratch with DI
+     * Used by "call" method.
+     * Returns closure to call in order to resolved passed in callable
      *
-     * @param  string $class
-     * @return mixed
+     * @param  \Closure|string $callable
+     * @return \Closure
      */
-    protected function build(string $class)
+    protected function getCallableFactory($callable): \Closure
     {
-        $reflection = new \ReflectionClass($class);
-        $constructor = $reflection->getConstructor();
-        $arguments = $this->buildArguments($constructor);
+        if (is_string($callable) && strpos($callable, '@') !== false) {
+            list($class, $method) = explode('@', $callable);
 
-        return function () use ($reflection, $constructor, $arguments) {
-            $instance = $reflection->newInstanceWithoutConstructor();
+            $factory = $this->getFactory($class);
+            $methodArguments = $this->createArguments(new \ReflectionMethod($class, $method));
 
-            if ($constructor) {
-                $constructor->invokeArgs($instance, $arguments());
-            }
+            return function (array $args = []) use ($factory, $methodArguments, $method) {
+                return $factory()->$method(...$methodArguments($args));
+            };
+        } else if ($callable instanceof \Closure) {
+            $reflection = new \ReflectionFunction($callable);
+            $arguments = $this->createArguments($reflection);
 
-            return $instance;
-        };
+            return function (array $args = []) use ($callable, $arguments) {
+                return $callable(...$arguments($args));
+            };
+        }
+
+        throw new \InvalidArgumentException(sprintf('"%s" can not be called out of container', $callable));
     }
 
     /**
-     * Build up arguments array for provided method
+     * Returns arguments builder function
      *
-     * @param \ReflectionMethod|null $method
+     * @param  \ReflectionMethod|\ReflectionFunction|null $method
      * @return \Closure
      */
-    protected function buildArguments(\ReflectionMethod $method = null): \Closure
+    protected function createArguments($method = null): \Closure
     {
-        $parameters = $method === null ? [] : array_map(function(\ReflectionParameter $parameter) {
+        $parameters = ($method === null) ? [] : array_map(function(\ReflectionParameter $parameter) {
             return [$parameter, $parameter->getClass() ? $parameter->getClass()->name : null];
         }, $method->getParameters());
 
-        return function () use ($parameters) {
-            $arguments = [];
-
-            foreach ($parameters as list($parameter, $class)) {
+        return function (array $args = []) use ($parameters) {
+            return array_map(function ($info) use ($args) {
                 /** @var \ReflectionParameter $parameter */
-                $value = null;
+                list($parameter, $class) = $info;
 
-                if ($class !== null) {
-                    $value = $this->make($class);
+                if (isset($args[$parameter->name])) {
+                    return $args[$parameter->name];
+                } else if ($class !== null) {
+                    return $this->make($class);
+                } else if ($parameter->isDefaultValueAvailable()) {
+                    return $parameter->getDefaultValue();
                 }
 
-                if ($parameter->isDefaultValueAvailable()) {
-                    $value = $parameter->getDefaultValue();
-                }
-
-                $arguments[] = $value;
-            }
-
-            return $arguments;
+                return null;
+            }, $parameters);
         };
     }
 }

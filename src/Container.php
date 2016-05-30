@@ -114,7 +114,7 @@ class Container
 
         if (!isset($this->factories[$abstract])) {
             $this->factories[$abstract] = isset($this->closures[$abstract])
-                ? $this->getClosureFactory($this->bindings[$abstract], $abstract)
+                ? $this->getClosureFactory($abstract)
                 : $this->getFactory($abstract);
         }
 
@@ -167,22 +167,21 @@ class Container
     /**
      * Returns closure binding resolving function
      *
-     * @param \Closure $closure
      * @param  string   $abstract
      * @return \Closure
      */
-    protected function getClosureFactory(\Closure $closure, string $abstract): \Closure
+    protected function getClosureFactory(string $abstract): \Closure
     {
         if (isset($this->shared[$abstract])) {
-            return function () use ($closure, $abstract) {
-                $this->instances[$abstract] = $closure($this);
+            return function () use ($abstract) {
+                $this->instances[$abstract] = $this->bindings[$abstract]($this);
 
                 return $this->instances[$abstract];
             };
         }
 
-        return function () use ($closure) {
-            return $closure($this);
+        return function () use ($abstract) {
+            return $this->bindings[$abstract]($this);
         };
     }
 
@@ -238,8 +237,7 @@ class Container
                 return $factory()->$method(...$methodArguments($args));
             };
         } else if ($callable instanceof \Closure) {
-            $reflection = new \ReflectionFunction($callable);
-            $arguments = $this->createArguments($reflection);
+            $arguments = $this->createArguments(new \ReflectionFunction($callable));
 
             return function (array $args = []) use ($callable, $arguments) {
                 return $callable(...$arguments($args));

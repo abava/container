@@ -65,12 +65,18 @@ class Container
             throw new \InvalidArgumentException(sprintf('Container item "%s" is already defined', $abstract));
         }
 
-        $this->keys[$abstract] = true;
-        $this->bindings[$abstract] = $concrete;
-
-        if ($concrete instanceof \Closure) {
+        if ($this->isClosure($concrete)) {
             $this->closures[$abstract] = true;
         }
+
+        if ($this->isFinalObject($concrete)) {
+            $this->instances[$abstract] = $concrete;
+            $this->shared[$abstract] = true;
+        } else {
+            $this->bindings[$abstract] = $concrete;
+        }
+
+        $this->keys[$abstract] = true;
     }
 
     /**
@@ -275,5 +281,27 @@ class Container
                 return null;
             }, $parameters);
         };
+    }
+
+    /**
+     * Defines, if passed in item is a closure
+     *
+     * @param  mixed $closure
+     * @return bool
+     */
+    protected function isClosure($closure): bool
+    {
+        return $closure instanceof \Closure;
+    }
+
+    /**
+     * Defines, if passed in item is an object and is not a Closure instance
+     *
+     * @param  mixed $item
+     * @return bool
+     */
+    protected function isFinalObject($item): bool
+    {
+        return is_object($item) && !$this->isClosure($item);
     }
 }

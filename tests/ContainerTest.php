@@ -30,6 +30,16 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     /**
      * @test
      */
+    public function canResolveInstance()
+    {
+        $this->container->bind('instance', $this);
+
+        $this->assertSame($this, $this->container->make('instance'));
+    }
+
+    /**
+     * @test
+     */
     public function canResolveClassWithConstructorParameters()
     {
         $this->assertInstanceOf('SimpleConstructorParametersClass', $this->container->make('SimpleConstructorParametersClass'));

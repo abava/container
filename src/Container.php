@@ -2,12 +2,14 @@
 
 namespace Venta\Container;
 
+use Interop\Container\ContainerInterface;
+
 /**
  * Class Container
  *
  * @package Venta\Container
  */
-class Container
+class Container implements ContainerInterface
 {
     /**
      * Array of container item keys
@@ -125,6 +127,14 @@ class Container
         }
 
         return $this->factories[$abstract]($args);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function get($id)
+    {
+        return $this->make($id);
     }
 
     /**

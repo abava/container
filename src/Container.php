@@ -2,14 +2,14 @@
 
 namespace Venta\Container;
 
-use Interop\Container\ContainerInterface;
+use Venta\Container\Contract\ContainerContract;
 
 /**
  * Class Container
  *
  * @package Venta\Container
  */
-class Container implements ContainerInterface
+class Container implements ContainerContract
 {
     /**
      * Array of container item keys
@@ -54,10 +54,7 @@ class Container implements ContainerInterface
     protected $closures = [];
 
     /**
-     * Bind element to container
-     *
-     * @param string $abstract
-     * @param mixed  $concrete
+     * {@inheritdoc}
      */
     public function bind(string $abstract, $concrete)
     {
@@ -82,10 +79,7 @@ class Container implements ContainerInterface
     }
 
     /**
-     * Add shared instance to container
-     *
-     * @param string   $abstract
-     * @param mixed    $concrete
+     * {@inheritdoc}
      */
     public function singleton(string $abstract, $concrete)
     {
@@ -102,15 +96,11 @@ class Container implements ContainerInterface
      */
     public function has($abstract): bool
     {
-        return isset($this->keys[$abstract]);
+        return isset($this->keys[$this->normalizeClassName($abstract)]);
     }
 
     /**
-     * Main container getter
-     *
-     * @param  string $abstract
-     * @param  array  $args
-     * @return mixed
+     * {@inheritdoc}
      */
     public function make(string $abstract, array $args = [])
     {
@@ -138,11 +128,7 @@ class Container implements ContainerInterface
     }
 
     /**
-     * Resolve and call \Closure out of container
-     *
-     * @param  \Closure|string $callable
-     * @param  array $args
-     * @return mixed
+     * {@inheritdoc}
      */
     public function call($callable, array $args = [])
     {

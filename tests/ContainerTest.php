@@ -51,10 +51,12 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     public function canBindStringInstance()
     {
+        $this->container->bind('\stdClass', 'stdClass');
         $this->container->bind('simple', 'stdClass');
         $this->container->singleton('complex', 'SimpleConstructorParametersClass');
 
         $this->assertTrue($this->container->has('complex'));
+        $this->assertTrue($this->container->has('\stdClass'));
         $this->assertFalse($this->container->has('non-existing'));
         $this->assertInstanceOf('stdClass', $this->container->make('simple'));
         $this->assertInstanceOf('SimpleConstructorParametersClass', $this->container->make('complex'));

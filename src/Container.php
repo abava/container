@@ -2,6 +2,7 @@
 
 namespace Venta\Container;
 
+use Venta\Container\Contract\CallerContract;
 use Venta\Container\Contract\ContainerContract;
 
 /**
@@ -9,7 +10,7 @@ use Venta\Container\Contract\ContainerContract;
  *
  * @package Venta\Container
  */
-class Container implements ContainerContract
+class Container implements ContainerContract, CallerContract
 {
     /**
      * Array of container item keys

@@ -267,7 +267,7 @@ class Container implements ContainerContract, CallerContract
                 /** @var \ReflectionParameter $parameter */
                 list($parameter, $class) = $info;
 
-                if (isset($args[$parameter->name])) {
+                if (array_key_exists($parameter->name, $args)) {
                     return $args[$parameter->name];
                 } else if ($class !== null) {
                     return $this->make($class);

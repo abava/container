@@ -30,6 +30,25 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     /**
      * @test
      */
+    public function makeAndGetAreTheSame()
+    {
+        $this->container->bind('class', new stdClass());
+        $this->assertSame($this->container->make('class'), $this->container->get('class'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCheckIfIsBinded()
+    {
+        $this->container->bind('simple', stdClass::class);
+        $this->assertTrue($this->container->has('simple'));
+        $this->assertFalse($this->container->has('complex'));
+    }
+
+    /**
+     * @test
+     */
     public function canResolveInstance()
     {
         $this->container->bind('instance', $this);

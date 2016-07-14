@@ -1,4 +1,4 @@
-# Venta Container package
+# Abava Container package
 This package is minimal container implementation, aimed to be used with PHP7
 
 ## Table of contents
@@ -13,7 +13,7 @@ This package is minimal container implementation, aimed to be used with PHP7
 ## Installation
 
 ```sh
-    composer require venta/container
+    composer require Abava/container
 ```
 
 ## Basic usage
@@ -24,7 +24,7 @@ Create an instance of container itself, and start binding.
     require __DIR__ . '/vendor/autoload.php';
     
     // Create container instance
-    $container = new \Venta\Container\Container;
+    $container = new \Abava\Container\Container;
     
     // Apply bindings
     $container->bind('container', $container);
@@ -40,7 +40,7 @@ Create an instance of container itself, and start binding.
     require __DIR__ . '/vendor/autoload.php';
     
     // Create container instance
-    $container = new \Venta\Container\Container;
+    $container = new \Abava\Container\Container;
     
     // Binding items
     $container->bind('something', 'stdClass');
@@ -75,7 +75,7 @@ Create an instance of container itself, and start binding.
     require __DIR__ . '/vendor/autoload.php';
     
     // Create container instance
-    $container = new \Venta\Container\Container;
+    $container = new \Abava\Container\Container;
     
     // Tag items
     $container->bind('container', $container);
@@ -94,7 +94,7 @@ If you want to rewrite something, that is defined in container, you can do it wi
     require __DIR__ . '/vendor/autoload.php';
     
     // Create container instance and rewrite class
-    $container = new \Venta\Container\Container;
+    $container = new \Abava\Container\Container;
     $rewrite = new class extends \stdClass {};
     
     // Perform rewrite
@@ -118,7 +118,7 @@ If you want to perform some action on class, when it is finally resolved, you ca
     require __DIR__ . '/vendor/autoload.php';
     
     // Create container instance and rewrite class
-    $container = new \Venta\Container\Container;
+    $container = new \Abava\Container\Container;
     
     // Using callback
     $container->resolved('config', function($config) {
@@ -134,8 +134,8 @@ There is a trait and contract to use in order to add container support to your c
     require __DIR__ . '/vendor/autoload.php';
     
     // Creating some class, using trait and contract
-    $containerAwareClass = new class implements \Venta\Contract\Container\ContainerAwareContract {
-        use Venta\Container\Traits\ContainerAwareTrait;
+    $containerAwareClass = new class implements \Abava\Contract\Container\ContainerAwareContract {
+        use Abava\Container\Traits\ContainerAwareTrait;
     };
     
     // Now you can get container instance with

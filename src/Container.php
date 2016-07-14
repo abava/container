@@ -1,14 +1,14 @@
 <?php declare(strict_types = 1);
 
-namespace Venta\Container;
+namespace Abava\Container;
 
-use Venta\Container\Contract\CallerContract;
-use Venta\Container\Contract\ContainerContract;
+use Abava\Container\Contract\CallerContract;
+use Abava\Container\Contract\ContainerContract;
 
 /**
  * Class Container
  *
- * @package Venta\Container
+ * @package Abava\Container
  */
 class Container implements ContainerContract, CallerContract
 {

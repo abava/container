@@ -1,6 +1,6 @@
 {
-    "name": "ventaframework/container",
-    "description": "Venta Framework Container package",
+    "name": "abava/container",
+    "description": "The Abava Container package",
     "authors": [
         {
             "name": "Konstantins Zukovs",
@@ -9,7 +9,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "Venta\\Container\\": "src/"
+            "Abava\\Container\\": "src/"
         }
     },
     "minimum-stability": "dev",

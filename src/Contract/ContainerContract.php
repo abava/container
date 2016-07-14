@@ -1,13 +1,13 @@
 <?php declare(strict_types = 1);
 
-namespace Venta\Container\Contract;
+namespace Abava\Container\Contract;
 
 use Interop\Container\ContainerInterface;
 
 /**
  * Interface ContainerContract
  *
- * @package Venta\Container
+ * @package Abava\Container
  */
 interface ContainerContract extends ContainerInterface
 {

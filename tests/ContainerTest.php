@@ -6,7 +6,7 @@
 class ContainerTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @var \Venta\Container\Container
+     * @var \Abava\Container\Container
      */
     private $container;
 
@@ -15,7 +15,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     public function setUp()
     {
-        $this->container = new Venta\Container\Container;
+        $this->container = new Abava\Container\Container;
     }
 
     /**
@@ -97,7 +97,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             return new \stdClass;
         });
 
-        $this->container->singleton('complex', function(\Venta\Container\Container $container) {
+        $this->container->singleton('complex', function(\Abava\Container\Container $container) {
             return $container->make('SimpleConstructorParametersClass');
         });
 

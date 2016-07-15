@@ -2,15 +2,15 @@
 
 namespace Abava\Container;
 
-use Abava\Container\Contract\CallerContract;
-use Abava\Container\Contract\ContainerContract;
+use Abava\Container\Contract\Caller as CallerContract;
+use Abava\Container\Contract\Container as ContainerContract;
 
 /**
  * Class Container
  *
  * @package Abava\Container
  */
-class Container implements ContainerContract, CallerContract
+class Container implements CallerContract, ContainerContract
 {
     /**
      * Array of container item keys
@@ -170,7 +170,7 @@ class Container implements ContainerContract, CallerContract
     /**
      * Returns closure binding resolving function
      *
-     * @param  string   $abstract
+     * @param  string $abstract
      * @return \Closure
      */
     protected function getClosureFactory(string $abstract): \Closure
@@ -210,10 +210,12 @@ class Container implements ContainerContract, CallerContract
 
                 return $this->instances[$abstract];
             };
-        } else if ($arguments !== null) {
-            return function (array $args = []) use ($class, $arguments) {
-                return new $class->name(...$arguments($args));
-            };
+        } else {
+            if ($arguments !== null) {
+                return function (array $args = []) use ($class, $arguments) {
+                    return new $class->name(...$arguments($args));
+                };
+            }
         }
 
         return function () use ($class) {
@@ -239,12 +241,14 @@ class Container implements ContainerContract, CallerContract
             return function (array $args = []) use ($factory, $methodArguments, $method) {
                 return $factory()->$method(...$methodArguments($args));
             };
-        } else if ($callable instanceof \Closure) {
-            $arguments = $this->createArguments(new \ReflectionFunction($callable));
+        } else {
+            if ($callable instanceof \Closure) {
+                $arguments = $this->createArguments(new \ReflectionFunction($callable));
 
-            return function (array $args = []) use ($callable, $arguments) {
-                return $callable(...$arguments($args));
-            };
+                return function (array $args = []) use ($callable, $arguments) {
+                    return $callable(...$arguments($args));
+                };
+            }
         }
 
         throw new \InvalidArgumentException(sprintf('"%s" can not be called out of container', $callable));
@@ -258,7 +262,7 @@ class Container implements ContainerContract, CallerContract
      */
     protected function createArguments($method = null): \Closure
     {
-        $parameters = ($method === null) ? [] : array_map(function(\ReflectionParameter $parameter) {
+        $parameters = ($method === null) ? [] : array_map(function (\ReflectionParameter $parameter) {
             return [$parameter, $parameter->getClass() ? $parameter->getClass()->name : null];
         }, $method->getParameters());
 
@@ -269,10 +273,14 @@ class Container implements ContainerContract, CallerContract
 
                 if (array_key_exists($parameter->name, $args)) {
                     return $args[$parameter->name];
-                } else if ($class !== null) {
-                    return $this->make($class);
-                } else if ($parameter->isDefaultValueAvailable()) {
-                    return $parameter->getDefaultValue();
+                } else {
+                    if ($class !== null) {
+                        return $this->make($class);
+                    } else {
+                        if ($parameter->isDefaultValueAvailable()) {
+                            return $parameter->getDefaultValue();
+                        }
+                    }
                 }
 
                 return null;

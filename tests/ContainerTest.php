@@ -61,7 +61,8 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     public function canResolveClassWithConstructorParameters()
     {
-        $this->assertInstanceOf('SimpleConstructorParametersClass', $this->container->make('SimpleConstructorParametersClass'));
+        $this->assertInstanceOf('SimpleConstructorParametersClass',
+            $this->container->make('SimpleConstructorParametersClass'));
         $this->assertInstanceOf('stdClass', $this->container->make('SimpleConstructorParametersClass')->getItem());
     }
 
@@ -93,11 +94,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     public function canBindClosure()
     {
-        $this->container->bind('simple', function() {
+        $this->container->bind('simple', function () {
             return new \stdClass;
         });
 
-        $this->container->singleton('complex', function(\Abava\Container\Container $container) {
+        $this->container->singleton('complex', function (\Abava\Container\Container $container) {
             return $container->make('SimpleConstructorParametersClass');
         });
 
@@ -114,7 +115,8 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     public function canCallMethodOutOfContainer()
     {
-        $this->assertInstanceOf('stdClass', $this->container->call('SimpleConstructorParametersClass@methodInjectTest'));
+        $this->assertInstanceOf('stdClass',
+            $this->container->call('SimpleConstructorParametersClass@methodInjectTest'));
 
         $this->expectException(ReflectionException::class);
         $this->expectExceptionMessage('Method SimpleConstructorParametersClass::nonExistingMethod() does not exist');
@@ -126,7 +128,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     public function canCallClosureOutOfContainer()
     {
-        $this->assertInstanceOf('stdClass', $this->container->call(function(\stdClass $item) {
+        $this->assertInstanceOf('stdClass', $this->container->call(function (\stdClass $item) {
             return $item;
         }));
     }
@@ -147,12 +149,15 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     public function canResolveWithManualArguments()
     {
-        $stub = new class extends \stdClass {};
+        $stub = new class extends \stdClass
+        {
+        };
         $resolved = $this->container->make('SimpleConstructorParametersClass', ['item' => $stub]);
 
         $this->assertInstanceOf('stdClass', $resolved->getItem());
         $this->assertEquals(0, $resolved->getInteger());
         $this->assertSame($stub, $resolved->getItem());
-        $this->assertSame($stub, $this->container->call('SimpleConstructorParametersClass@methodInjectTest', ['item' => $stub]));
+        $this->assertSame($stub,
+            $this->container->call('SimpleConstructorParametersClass@methodInjectTest', ['item' => $stub]));
     }
 }

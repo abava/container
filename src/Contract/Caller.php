@@ -4,9 +4,10 @@ namespace Abava\Container\Contract;
 
 /**
  * Interface CallerContract
+ *
  * @package Abava\Container\Contract
  */
-interface CallerContract
+interface Caller
 {
 
     /**

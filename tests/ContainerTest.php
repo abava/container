@@ -1,9 +1,11 @@
 <?php
 
+use PHPUnit\Framework\TestCase;
+
 /**
  * Class ContainerTest
  */
-class ContainerTest extends \PHPUnit_Framework_TestCase
+class ContainerTest extends TestCase
 {
     /**
      * @var \Abava\Container\Container
@@ -159,5 +161,47 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($stub, $resolved->getItem());
         $this->assertSame($stub,
             $this->container->call('SimpleConstructorParametersClass@methodInjectTest', ['item' => $stub]));
+    }
+}
+
+class SimpleConstructorParametersClass
+{
+    protected $item;
+    protected $integer;
+    
+    public function __construct(\stdClass $item, int $integer = 0)
+    {
+        $this->item = $item;
+        $this->integer = $integer;
+    }
+
+    public function getItem()
+    {
+        return $this->item;
+    }
+
+    public function getInteger()
+    {
+        return $this->integer;
+    }
+
+    public function methodInjectTest(\stdClass $item)
+    {
+        return $item;
+    }
+}
+
+class RewriteTestClass extends \stdClass
+{
+    protected $value;
+
+    public function setValue($value)
+    {
+        $this->value = $value;
+    }
+
+    public function getValue()
+    {
+        return $this->value;
     }
 }

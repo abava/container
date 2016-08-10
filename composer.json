@@ -10,11 +10,14 @@
     "autoload": {
         "psr-4": {
             "Abava\\Container\\": "/"
-        }
+        },
+        "exclude-from-classmap": [
+            "/tests/"
+        ]
     },
     "minimum-stability": "dev",
     "require-dev": {
-        "phpunit/phpunit": "5.2"
+        "phpunit/phpunit": "^5.4"
     },
     "require": {
         "container-interop/container-interop": "^1.1"

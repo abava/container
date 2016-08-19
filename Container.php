@@ -2,311 +2,419 @@
 
 namespace Abava\Container;
 
-use Abava\Container\Contract\Caller as CallerContract;
 use Abava\Container\Contract\Container as ContainerContract;
+use Abava\Container\Exception\ContainerException;
+use Abava\Container\Exception\NotFoundException;
+use Closure;
+use ReflectionClass;
+use ReflectionFunctionAbstract;
+use ReflectionMethod;
+use ReflectionParameter;
 
 /**
  * Class Container
  *
  * @package Abava\Container
  */
-class Container implements CallerContract, ContainerContract
+class Container implements ContainerContract
 {
     /**
-     * Array of container item keys
+     * Array of container entry identifiers
      *
-     * @var array
+     * @var string[]
      */
     protected $keys = [];
 
     /**
-     * Array of defined instances
+     * Array of container entry raw definitions
      *
-     * @var array
+     * @var string[]|callable[]
+     */
+    protected $definitions = [];
+
+    /**
+     * Array of closure entry keys
+     *
+     * @var bool[]
+     */
+    protected $closures = [];
+
+    /**
+     * Array of actual instances
+     *
+     * @var object[]
      */
     protected $instances = [];
 
     /**
      * Array of shared instances keys
      *
-     * @var array
+     * @var bool[]
      */
     protected $shared = [];
 
     /**
-     * Array of bindings
+     * Array of created container entry factories
      *
-     * @var array
-     */
-    protected $bindings = [];
-
-    /**
-     * Array of created container item factories
-     *
-     * @var array
+     * @var Closure[]
      */
     protected $factories = [];
 
     /**
-     * Array of closure keys
-     *
-     * @var array
+     * @var string[]
      */
-    protected $closures = [];
+    protected $aliases = [];
+
+    /**
+     * @var string[][]
+     */
+    protected $inflections = [];
 
     /**
      * {@inheritdoc}
      */
-    public function bind(string $abstract, $concrete)
+    public function set(string $id, $entry, array $aliases = [])
     {
-        $abstract = $this->normalizeClassName($abstract);
+        $id = $this->assertId($id);
 
-        if ($this->has($abstract)) {
-            throw new \InvalidArgumentException(sprintf('Container item "%s" is already defined', $abstract));
+        array_walk($aliases, [$this, 'assertAlias']);
+
+        if ($this->isClosure($entry)) {
+            $this->closures[$id] = true;
         }
 
-        if ($this->isClosure($concrete)) {
-            $this->closures[$abstract] = true;
-        }
-
-        if ($this->isFinalObject($concrete)) {
-            $this->instances[$abstract] = $concrete;
-            $this->shared[$abstract] = true;
+        if ($this->isConcrete($entry)) {
+            $this->instances[$id] = $entry;
+            // All concrete instances are shared by default
+            $this->shared[$id] = true;
         } else {
-            $this->bindings[$abstract] = $concrete;
+            $this->definitions[$id] = $entry;
         }
 
-        $this->keys[$abstract] = true;
+        $this->keys[$id] = true;
+        foreach ($aliases as $alias) {
+            $this->aliases[$alias] = $id;
+        }
+
     }
 
     /**
      * {@inheritdoc}
      */
-    public function singleton(string $abstract, $concrete)
+    public function singleton(string $id, $entry, array $aliases = [])
     {
-        $this->bind($abstract, $concrete);
-
-        $this->shared[$this->resolveAlias($this->normalizeClassName($abstract))] = true;
+        $this->set($id, $entry, $aliases);
+        $this->shared[$this->normalize($id)] = true;
     }
 
     /**
-     * Defines, if item exists in container
+     * {@inheritdoc}
+     */
+    public function alias(string $id, $alias)
+    {
+        $id = $this->normalize($id);
+        foreach ((array)$alias as $a) {
+            $this->aliases[$this->assertAlias($a)] = $id;
+        }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function factory(string $id, callable $factory)
+    {
+        $id = $this->normalize($id);
+        $this->factories[$id] = $factory;
+        $this->keys[$id] = true;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function has($id): bool
+    {
+        return $this->isResolvable($id);
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function get($id, array $args = [])
+    {
+        $id = $this->resolveAlias($this->normalize($id));
+
+        if (interface_exists($id) && !isset($this->keys[$id])) {
+            throw new NotFoundException(sprintf('Unable to resolve "%s"', $id));
+        }
+
+        // Check shared instances first
+        if (isset($this->instances[$id])) {
+            return $this->instances[$id];
+        }
+
+        // Create instance factory closure
+        if (!isset($this->factories[$id])) {
+            $this->factories[$id] = $this->createFactory($id);
+        }
+
+        return $this->factories[$id]($args);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function inflect(string $id, string $method, array $args = [])
+    {
+        $id = $this->resolveAlias($this->assertId($id));
+        if (!method_exists($id, $method)) {
+            throw new ContainerException(sprintf('Method "%s" not found in "%s"', $method, $id));
+        }
+
+        $this->inflections[$id][$method] = $args;
+    }
+
+
+    /**
+     * @param string $id
+     * @return string
+     */
+    protected function resolveAlias(string $id): string
+    {
+        return $this->aliases[$id] ?? $id;
+    }
+
+    /**
+     * Checks if container can resolve subject id
      *
-     * @param  string $abstract
+     * @param string $id
      * @return bool
      */
-    public function has($abstract): bool
+    protected function isResolvable(string $id): bool
     {
-        return isset($this->keys[$this->normalizeClassName($abstract)]);
+        return isset($this->keys[$this->normalize($id)]) || class_exists($id);
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function make(string $abstract, array $args = [])
-    {
-        $abstract = $this->resolveAlias($this->normalizeClassName($abstract));
-
-        if (isset($this->instances[$abstract])) {
-            return $this->instances[$abstract];
-        }
-
-        if (!isset($this->factories[$abstract])) {
-            $this->factories[$abstract] = isset($this->closures[$abstract])
-                ? $this->getClosureFactory($abstract)
-                : $this->getFactory($abstract);
-        }
-
-        return $this->factories[$abstract]($args);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function get($id)
-    {
-        return $this->make($id);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function call($callable, array $args = [])
-    {
-        $factory = $this->getCallableFactory($callable);
-
-        return $factory($args);
-    }
-
-    /**
-     * Normalize class name, if it is string
+     * Validate alias
      *
-     * @param  string $class
+     * @param string $alias
      * @return string
+     * @throws ContainerException
      */
-    protected function normalizeClassName(string $class): string
+    protected function assertAlias(string $alias): string
     {
-        return ltrim($class, '\\');
-    }
-
-    /**
-     * Resolves container aliases into real items
-     *
-     * @param  string $alias
-     * @return string
-     */
-    protected function resolveAlias(string $alias): string
-    {
-        if (
-            isset($this->keys[$alias]) &&
-            (isset($this->bindings[$alias]) && is_string($this->bindings[$alias]))
-        ) {
-            return $this->bindings[$alias];
+        $alias = $this->normalize($alias);
+        if (isset($this->aliases[$alias])) {
+            throw new ContainerException(sprintf('Alias "%s" already defined', $alias));
         }
 
         return $alias;
     }
 
     /**
-     * Returns closure binding resolving function
-     *
-     * @param  string $abstract
-     * @return \Closure
+     * @param string $id
+     * @return Closure
      */
-    protected function getClosureFactory(string $abstract): \Closure
+    protected function createFactory(string $id): Closure
     {
-        if (isset($this->shared[$abstract])) {
-            return function () use ($abstract) {
-                $this->instances[$abstract] = $this->bindings[$abstract]($this);
-
-                return $this->instances[$abstract];
+        if (isset($this->closures[$id])) {
+            return function () use ($id) {
+                return $this->applyInflections(($this->createFactoryFromClosureDefinition($id))());
             };
         }
 
-        return function () use ($abstract) {
-            return $this->bindings[$abstract]($this);
+        return function (array $args = []) use ($id) {
+            return $this->applyInflections(($this->createFactoryFromDefinition($id))($args));
+        };
+    }
+
+
+    /**
+     * Normalize id to use across container
+     *
+     * @param  string $id
+     * @return string
+     */
+    protected function normalize(string $id): string
+    {
+        return strtolower(ltrim($id, '\\'));
+    }
+
+    /**
+     * Ensure valid entry id
+     *
+     * @param string $id
+     * @return string
+     */
+    protected function assertId(string $id): string
+    {
+        if (!interface_exists($id) && !class_exists($id)) {
+            throw new ContainerException(
+                sprintf('Invalid id "%s". Container entry id must be an existing interface or class name.', $id)
+            );
+        }
+
+        return $this->normalize($id);
+    }
+
+    /**
+     * Returns closure binding resolving function
+     *
+     * @param  string $id
+     * @return Closure
+     */
+    protected function createFactoryFromClosureDefinition(string $id): Closure
+    {
+        // Create shared instance factory closure
+        if (isset($this->shared[$id])) {
+            return function () use ($id) {
+                return $this->instances[$id] = $this->definitions[$id]($this);
+            };
+        }
+
+        // Create instance factory closure
+        return function () use ($id) {
+            return $this->definitions[$id]($this);
         };
     }
 
     /**
      * Returns initialisation factory for objects
      *
-     * @param  string $abstract
-     * @return \Closure
+     * @param  string $id
+     * @return Closure
      */
-    protected function getFactory(string $abstract): \Closure
+    protected function createFactoryFromDefinition(string $id): Closure
     {
-        $class = new \ReflectionClass($abstract);
-        $constructor = $class->getConstructor();
-        $arguments = $constructor ? $this->createArguments($constructor) : null;
+        $class = new ReflectionClass($id);
 
-        if (isset($this->shared[$abstract])) {
-            return function (array $args = []) use ($abstract, $class, $constructor, $arguments) {
-                $this->instances[$abstract] = $class->newInstanceWithoutConstructor();
+        // Create argument resolver if instance has constructor dependencies
+        $argumentResolver = $this->createConstructorArgumentResolver($class);
 
-                if ($constructor) {
-                    $constructor->invokeArgs($this->instances[$abstract], $arguments($args));
-                }
+        // Create factory closure for shared instance
+        if (isset($this->shared[$id])) {
+            return function (array $args = []) use ($id, $class, $argumentResolver) {
+                return $this->instances[$id] = $argumentResolver
+                    ? $class->newInstanceArgs($argumentResolver($args))
+                    : new $class->name;
 
-                return $this->instances[$abstract];
+                // todo: inflect
             };
-        } else {
-            if ($arguments !== null) {
-                return function (array $args = []) use ($class, $arguments) {
-                    return new $class->name(...$arguments($args));
-                };
-            }
         }
 
+        // Create factory closure with argument resolver
+        if ($argumentResolver) {
+            return function (array $args = []) use ($class, $argumentResolver) {
+                return $class->newInstanceArgs($argumentResolver($args));
+            };
+        }
+
+        // Create factory closure with no arguments
         return function () use ($class) {
             return new $class->name;
         };
     }
 
     /**
-     * Used by "call" method.
-     * Returns closure to call in order to resolved passed in callable
-     *
-     * @param  \Closure|string $callable
-     * @return \Closure
+     * @param ReflectionClass $class
+     * @return callable|Closure|null
      */
-    protected function getCallableFactory($callable): \Closure
+    protected function createConstructorArgumentResolver(ReflectionClass $class)
     {
-        if (is_string($callable) && strpos($callable, '@') !== false) {
-            list($class, $method) = explode('@', $callable);
+        $constructor = $class->getConstructor();
 
-            $factory = $this->getFactory($class);
-            $methodArguments = $this->createArguments(new \ReflectionMethod($class, $method));
-
-            return function (array $args = []) use ($factory, $methodArguments, $method) {
-                return $factory()->$method(...$methodArguments($args));
-            };
-        } else {
-            if ($callable instanceof \Closure) {
-                $arguments = $this->createArguments(new \ReflectionFunction($callable));
-
-                return function (array $args = []) use ($callable, $arguments) {
-                    return $callable(...$arguments($args));
-                };
-            }
-        }
-
-        throw new \InvalidArgumentException(sprintf('"%s" can not be called out of container', $callable));
-    }
-
-    /**
-     * Returns arguments builder function
-     *
-     * @param  \ReflectionMethod|\ReflectionFunction|null $method
-     * @return \Closure
-     */
-    protected function createArguments($method = null): \Closure
-    {
-        $parameters = ($method === null) ? [] : array_map(function (\ReflectionParameter $parameter) {
-            return [$parameter, $parameter->getClass() ? $parameter->getClass()->name : null];
-        }, $method->getParameters());
-
-        return function (array $args = []) use ($parameters) {
-            return array_map(function ($info) use ($args) {
-                /** @var \ReflectionParameter $parameter */
-                list($parameter, $class) = $info;
-
-                if (array_key_exists($parameter->name, $args)) {
-                    return $args[$parameter->name];
-                } else {
-                    if ($class !== null) {
-                        return $this->make($class);
-                    } else {
-                        if ($parameter->isDefaultValueAvailable()) {
-                            return $parameter->getDefaultValue();
-                        }
-                    }
-                }
-
-                return null;
-            }, $parameters);
-        };
+        return ($constructor && $constructor->getNumberOfParameters())
+            ? $this->createArgumentResolver($constructor)
+            : null;
     }
 
     /**
      * Defines, if passed in item is a closure
      *
-     * @param  mixed $closure
+     * @param $entry
      * @return bool
      */
-    protected function isClosure($closure): bool
+    protected function isClosure($entry): bool
     {
-        return $closure instanceof \Closure;
+        return $entry instanceof Closure;
     }
 
     /**
-     * Defines, if passed in item is an object and is not a Closure instance
+     * Defines, if passed in item is an object instance
      *
-     * @param  mixed $item
+     * @param mixed $entry
      * @return bool
      */
-    protected function isFinalObject($item): bool
+    protected function isConcrete($entry): bool
     {
-        return is_object($item) && !$this->isClosure($item);
+        return is_object($entry) && !$entry instanceof Closure;
     }
+
+    /**
+     * Apply inflections on subject object
+     *
+     * @param $object
+     * @return mixed
+     */
+    protected function applyInflections($object)
+    {
+        foreach ($this->inflections as $type => $methods) {
+            if (!$object instanceof $type) {
+                continue;
+            }
+
+            foreach ($methods as $method => $args) {
+                $argumentResolver = $this->createArgumentResolver(new ReflectionMethod($type, $method));
+                call_user_func_array([$object, $method], $argumentResolver($args));
+            }
+        }
+
+        return $object;
+    }
+
+    /**
+     * @param ReflectionFunctionAbstract $method
+     * @return Closure
+     */
+    public function createArgumentResolver(ReflectionFunctionAbstract $method): Closure
+    {
+        // Reflect method arguments from method signature once
+        // to use in resolver closure for all future resolve operations
+        $reflectedParams = array_map(function (ReflectionParameter $parameter) {
+            return [$parameter, $parameter->getClass() ? $parameter->getClass()->name : null];
+        }, $method->getParameters());
+
+        // Create argument resolver closure with reflected arguments and container to provide resolving functionality
+        return function (array $overrideArgs = []) use ($reflectedParams) {
+
+            return array_map(function ($paramDefinition) use ($overrideArgs) {
+                /** @var ReflectionParameter $parameter */
+                list($parameter, $class) = $paramDefinition;
+
+                // If passed use argument instead of reflected parameter
+                if (array_key_exists($parameter->name, $overrideArgs)) {
+                    return $overrideArgs[$parameter->name];
+                }
+
+                // Recursively resolve method arguments
+                if ($class !== null) {
+                    return $this->get($class);
+                }
+
+                // Use argument default value if defined
+                if ($parameter->isDefaultValueAvailable()) {
+                    return $parameter->getDefaultValue();
+                }
+
+                return null;
+
+            }, $reflectedParams);
+        };
+    }
+
+    private function __clone()
+    {
+    }
+
 }

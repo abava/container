@@ -12,28 +12,54 @@ use Interop\Container\ContainerInterface;
 interface Container extends ContainerInterface
 {
     /**
-     * Bind element to container
+     * Add an entry to the container
      *
-     * @param string $abstract
-     * @param mixed $concrete
+     * @param string $id Container entry identifier
+     * @param mixed $entry
+     * @param array $aliases
+     * @return void
      */
-    public function bind(string $abstract, $concrete);
+    public function set(string $id, $entry, array $aliases = []);
 
     /**
      * Add shared instance to container
      *
-     * @param string $abstract
-     * @param mixed $concrete
+     * @param string $id Container entry identifier
+     * @param mixed $entry
+     * @param array $aliases
+     * @return void
      */
-    public function singleton(string $abstract, $concrete);
+    public function singleton(string $id, $entry, array $aliases = []);
 
     /**
-     * Main container getter
+     * Add alias for container entry
      *
-     * @param  string $abstract
-     * @param  array $args
-     * @return mixed
+     * @param string $id
+     * @param string|string[] $alias
+     * @return void
      */
-    public function make(string $abstract, array $args = []);
+    public function alias(string $id, $alias);
 
+    /**
+     * Register method to be called after entry instantiation
+     *
+     * @param string $id
+     * @param string $method
+     * @param array $args
+     * @return void
+     */
+    public function inflect(string $id, string $method, array $args = []);
+
+    /**
+     * @param string $id
+     * @param callable $factory
+     * @return void
+     */
+    public function factory(string $id, callable $factory);
+
+    /**
+     * @inheritDoc
+     * @param array $args
+     */
+    public function get($id, array $args = []);
 }

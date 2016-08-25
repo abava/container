@@ -167,6 +167,17 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canResolveFromInvokableClassName()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassFactory::class, TestClassFactory::class);
+
+        $this->assertInstanceOf(TestClassFactory::class, $container->get(TestClassFactory::class));
+    }
+
+    /**
+     * @test
+     */
     public function canResolveFromObjectMethodArray()
     {
         $factory = Mockery::mock(TestClassFactory::class)

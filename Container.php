@@ -131,9 +131,17 @@ class Container implements ContainerContract
 
     /**
      * @inheritDoc
+     * @param callable|string $callable Callable to call OR class name to instantiate and invoke
      */
     public function call($callable, array $arguments = [])
     {
+        if (is_string($callable) && method_exists($callable, '__invoke')) {
+            // we have not instantiated invokable class here
+            $callable = [$callable, '__invoke'];
+        } elseif (!is_callable($callable)) {
+            throw new \InvalidArgumentException(sprintf("Callable expected, '%s' is given.", gettype($callable)));
+        }
+
         return ($this->createFactoryFromCallable($callable))($arguments);
     }
 
@@ -263,12 +271,8 @@ class Container implements ContainerContract
      */
     protected function createFactoryFromCallable($callable): Closure
     {
-        if (is_string($callable)) {
-            if (strpos($callable, '::') !== false) {
-                $callable = explode('::', $callable);
-            } elseif (method_exists($callable, '__invoke')) {
-                $callable = [$callable, '__invoke'];
-            }
+        if (is_string($callable) && strpos($callable, '::') !== false) {
+            $callable = explode('::', $callable);
         }
 
         if ($this->isConcrete($callable)) {

@@ -21,6 +21,14 @@ interface Container extends ContainerInterface
     public function alias(string $id, string $alias);
 
     /**
+     * Invoke a callable with resolving dependencies.
+     *
+     * @param $callable
+     * @param array $arguments
+     */
+    public function call($callable, array $arguments = []);
+
+    /**
      * {@inheritDoc}
      * @param array $arguments
      */

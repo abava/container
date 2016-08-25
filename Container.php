@@ -132,6 +132,14 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
+    public function call($callable, array $arguments = [])
+    {
+        return ($this->createFactoryFromCallable($callable))($arguments);
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function get($id, array $arguments = [])
     {
         $id = $this->resolveAlias($id);

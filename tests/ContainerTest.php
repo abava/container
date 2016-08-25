@@ -91,6 +91,17 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canResolveFromAbstractClassNameStaticMethod()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, 'StaticTestFactory::create');
+
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
+    }
+
+    /**
+     * @test
+     */
     public function canResolveFromClassNameMethodArray()
     {
         $container = new Abava\Container\Container;
@@ -197,6 +208,24 @@ class ContainerTest extends TestCase
 
     /**
      * @test
+     */
+    public function canCallCallable()
+    {
+        $container = new Abava\Container\Container;
+        $this->assertInstanceOf(TestClassContract::class, $container->call('createTestClass'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCallInvokableClassName()
+    {
+        $container = new Abava\Container\Container;
+        $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactory'));
+    }
+
+    /**
+     * @test
      * @expectedException \Interop\Container\Exception\NotFoundException
      */
     public function throwsNotFoundExceptionIfNotResolvable()
@@ -291,4 +320,14 @@ class TestClassFactory
 function createTestClass(stdClass $dependency)
 {
     return new TestClass($dependency);
+}
+
+abstract class StaticTestFactory
+{
+
+    public static function create(stdClass $dependency)
+    {
+        return new TestClass($dependency);
+    }
+
 }

@@ -266,7 +266,7 @@ class Container implements ContainerContract
     /**
      * Create callable factory with resolved arguments from callable.
      *
-     * @param $callable
+     * @param callable $callable
      * @return Closure
      */
     protected function createFactoryFromCallable($callable): Closure
@@ -279,28 +279,20 @@ class Container implements ContainerContract
             $callable = [$callable, '__invoke'];
         }
 
-        $reflector = (is_array($callable))
-            ? new ReflectionMethod($callable[0], $callable[1])
-            : new ReflectionFunction($callable);
+        $reflect = [$this, 'createReflector'];
+        $resolve = [$this, 'createResolver'];
 
-        $resolver = $this->createResolver($reflector);
+        if (is_array($callable)) {
+            $subject = is_string($callable[0]) ? $this->get($callable[0]) : $callable[0];
+            $method = $callable[1];
 
-        if ($reflector instanceof ReflectionMethod) {
-            if ($reflector->isStatic()) {
-                $callable[0] = null;
-            } elseif (is_string($callable[0])) {
-                $callable[0] = $this->get($callable[0]);
-            }
-
-            $factory = $callable[0];
-
-            return function (array $arguments) use ($factory, $reflector, $resolver) {
-                return $reflector->invokeArgs($factory, $resolver($arguments));
-            };
+            return (function (array $arguments = []) use ($method, $reflect, $resolve) {
+                return $this->{$method}(...($resolve($reflect([$this, $method])))($arguments));
+            })->bindTo($subject);
         }
 
-        return function (array $arguments) use ($reflector, $resolver) {
-            return $reflector->invokeArgs($resolver($arguments));
+        return function (array $arguments = []) use ($callable, $reflect, $resolve) {
+            return $callable(...($resolve($reflect($callable)))($arguments));
         };
     }
 
@@ -359,6 +351,19 @@ class Container implements ContainerContract
 
             }, $function->getParameters());
         };
+    }
+
+    /**
+     * Create reflector depending on callable type.
+     *
+     * @param callable|string|array $callable
+     * @return ReflectionFunction|ReflectionMethod|ReflectionFunctionAbstract
+     */
+    protected function createReflector($callable): ReflectionFunctionAbstract
+    {
+        return is_array($callable)
+            ? new ReflectionMethod($callable[0], $callable[1])
+            : new ReflectionFunction($callable);
     }
 
     /**

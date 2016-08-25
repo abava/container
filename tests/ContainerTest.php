@@ -237,6 +237,18 @@ class ContainerTest extends TestCase
 
     /**
      * @test
+     */
+    public function canApplyInflector()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
+        $result = $container->get(TestClass::class);
+
+        $this->assertSame(42, $result->getValue());
+    }
+
+    /**
+     * @test
      * @expectedException \Interop\Container\Exception\NotFoundException
      */
     public function throwsNotFoundExceptionIfNotResolvable()

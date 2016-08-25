@@ -120,9 +120,29 @@ class Container implements ContainerContract
                 continue;
             }
 
-            foreach ($methods as $method => $args) {
-                $argumentResolver = $this->createResolver(new ReflectionMethod($type, $method));
-                $object->{$method}(...$argumentResolver($args));
+            /**
+             * @var string $method
+             * @var array|Closure $inflection
+             */
+            foreach ($methods as $method => $inflection) {
+                if (is_array($inflection)) {
+                    // $inflection contains array of arguments to be passed
+                    // wrapping protected methods calls with closure
+                    // to bind them to inflection factory with variadic context
+                    $reflect = function ($callable) {
+                        return $this->createReflector($callable);
+                    };
+                    $resolve = function ($reflection) {
+                        return $this->createResolver($reflection);
+                    };
+                    $inflection = function () use ($inflection, $type, $method, $reflect, $resolve) {
+                        $this->$method(...($resolve($reflect([$type, $method])))($inflection));
+                    };
+                    // replace array with prepared factory
+                    $this->inflections[$type][$method] = $inflection;
+                }
+                // factory is ready for re-use, we need only to swap context to provided object
+                $inflection->call($object);
             }
         }
 

@@ -10,7 +10,7 @@ namespace Abava\Container\Contract;
 interface ContainerAware
 {
     /**
-     * Set container entity
+     * Set container entity.
      *
      * @param Container $container
      * @return ContainerAware

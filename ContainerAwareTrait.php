@@ -1,11 +1,14 @@
-<?php
-
+<?php declare(strict_types = 1);
 
 namespace Abava\Container;
 
-
 use Abava\Container\Contract\Container;
 
+/**
+ * Trait ContainerAwareTrait
+ *
+ * @package Abava\Container
+ */
 trait ContainerAwareTrait
 {
     /**

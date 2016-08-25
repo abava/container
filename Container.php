@@ -20,6 +20,13 @@ use ReflectionParameter;
 class Container implements ContainerContract
 {
     /**
+     * Globally available container instance.
+     *
+     * @var ContainerContract
+     */
+    protected static $instance;
+
+    /**
      * Array of container entry aliases.
      *
      * @var string[]
@@ -76,6 +83,20 @@ class Container implements ContainerContract
      * @var bool[]
      */
     protected $shared = [];
+
+    /**
+     * Get container instance.
+     *
+     * @return ContainerContract
+     */
+    public static function getInstance(): ContainerContract
+    {
+        if (static::$instance === null) {
+            static::$instance = new static;
+        }
+
+        return static::$instance;
+    }
 
     /**
      * @inheritDoc

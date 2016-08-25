@@ -15,6 +15,22 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canGetSelfInstance()
+    {
+        $this->assertInstanceOf(\Abava\Container\Contract\Container::class, \Abava\Container\Container::getInstance());
+    }
+
+    /**
+     * @test
+     */
+    public function isSingleton()
+    {
+        $this->assertSame(\Abava\Container\Container::getInstance(), \Abava\Container\Container::getInstance());
+    }
+
+    /**
+     * @test
+     */
     public function canCheckEntryIsResolvable()
     {
         $container = new Abava\Container\Container;

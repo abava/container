@@ -279,20 +279,24 @@ class Container implements ContainerContract
             $callable = [$callable, '__invoke'];
         }
 
-        $reflect = [$this, 'createReflector'];
-        $resolve = [$this, 'createResolver'];
-
         if (is_array($callable)) {
-            $subject = is_string($callable[0]) ? $this->get($callable[0]) : $callable[0];
-            $method = $callable[1];
 
-            return (function (array $arguments = []) use ($method, $reflect, $resolve) {
-                return $this->{$method}(...($resolve($reflect([$this, $method])))($arguments));
-            })->bindTo($subject);
+            return function (array $arguments = []) use ($callable) {
+                $reflection = $this->createReflector($callable);
+                if ($reflection->isStatic()) {
+                    $object = null;
+                } elseif (is_string($callable[0])) {
+                    $object = $this->get($callable[0]);
+                } else {
+                    $object = $callable[0];
+                }
+
+                return $reflection->invokeArgs($object, ($this->createResolver($reflection))($arguments));
+            };
         }
 
-        return function (array $arguments = []) use ($callable, $reflect, $resolve) {
-            return $callable(...($resolve($reflect($callable)))($arguments));
+        return function (array $arguments = []) use ($callable) {
+            return $callable(...($this->createResolver($this->createReflector($callable)))($arguments));
         };
     }
 

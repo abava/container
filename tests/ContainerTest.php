@@ -408,6 +408,17 @@ class ContainerTest extends TestCase
 
     /**
      * @test
+     * @expectedException \Interop\Container\Exception\ContainerException
+     */
+    public function throwsContainerExceptionIfCantResolve()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, function ($someUnresolvableDependency) {});
+        $container->get(TestClassContract::class);
+    }
+
+    /**
+     * @test
      * @expectedException InvalidArgumentException
      */
     public function throwsExceptionIfCallingNotCallable()

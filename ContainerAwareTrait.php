@@ -2,7 +2,7 @@
 
 namespace Abava\Container;
 
-use Abava\Container\Contract\Container;
+use Abava\Container\Contract\Container as ContainerContract;
 
 /**
  * Trait ContainerAwareTrait
@@ -12,17 +12,17 @@ use Abava\Container\Contract\Container;
 trait ContainerAwareTrait
 {
     /**
-     * @var Container
+     * @var ContainerContract
      */
     protected $container;
 
     /**
      * Set a container.
      *
-     * @param Container $container
+     * @param ContainerContract $container
      * @return $this
      */
-    public function setContainer(Container $container)
+    public function setContainer(ContainerContract $container)
     {
         $this->container = $container;
 

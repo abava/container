@@ -161,7 +161,7 @@ class ContainerTest extends TestCase
 
         $container = new Abava\Container\Container;
         $container->set(TestClassContract::class, $factory);
-        $container->get(TestClassContract::class);
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
 
     /**
@@ -189,19 +189,23 @@ class ContainerTest extends TestCase
 
         $container = new Abava\Container\Container;
         $container->set(TestClassContract::class, [$factory, 'create']);
-        $container->get(TestClassContract::class);
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
 
 
     /**
      * @test
      */
-    public function canResolveInstance()
+    public function canResolveInstanceAsShared()
     {
         $container = new Abava\Container\Container;
         $container->set(Abava\Container\Contract\Container::class, $this);
 
         $this->assertSame($this, $container->get(Abava\Container\Contract\Container::class));
+        $this->assertSame(
+            $container->get(Abava\Container\Contract\Container::class),
+            $container->get(Abava\Container\Contract\Container::class)
+        );
     }
 
     /**
@@ -220,10 +224,84 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canCallCallable()
+    public function canCallCallableFunctionName()
     {
         $container = new Abava\Container\Container;
         $this->assertInstanceOf(TestClassContract::class, $container->call('createTestClass'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClassNameMethod()
+    {
+        $container = new Abava\Container\Container;
+        $result = $container->call('TestClassFactory::createAndSetValue');
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
+        $this->assertInstanceOf(stdClass::class, $result->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClassNameMethodStatically()
+    {
+        $container = new Abava\Container\Container;
+
+        $this->assertInstanceOf(TestClassContract::class, $container->call('StaticTestFactory::create'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClassNameMethodFromArray()
+    {
+        $container = new Abava\Container\Container;
+        $result = $container->call(['TestClassFactory', 'createAndSetValue']);
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
+        $this->assertInstanceOf(stdClass::class, $result->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canCallObjectMethodFromArrayCallable()
+    {
+        $container = new Abava\Container\Container;
+        $result = $container->call([new TestClassFactory(new stdClass()), 'createAndSetValue']);
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
+        $this->assertInstanceOf(stdClass::class, $result->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClosure()
+    {
+        $container = new Abava\Container\Container;
+        $object = new stdClass();
+        $object->key = 'value';
+        $container->set(stdClass::class, $object);
+        $result = $container->call(function (stdClass $dependency) {
+            return $dependency->key;
+        });
+
+        $this->assertSame('value', $result);
+    }
+
+    /**
+     * @test
+     */
+    public function canCallInvokableObject()
+    {
+        $container = new Abava\Container\Container;
+        $invokable = new TestClassFactory(new stdClass());
+        $result = $container->call($invokable);
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
     }
 
     /**
@@ -238,7 +316,7 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canApplyInflector()
+    public function canApplyInflectionsOnGet()
     {
         $container = new Abava\Container\Container;
         $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
@@ -249,12 +327,144 @@ class ContainerTest extends TestCase
 
     /**
      * @test
+     */
+    public function canApplyInflectionsOnProvidedInstance()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
+        $test = new TestClass(new stdClass());
+        $container->applyInflections($test);
+
+        $this->assertSame(42, $test->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canApplyInflectionsWithResolvedArgs()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(SimpleConstructorParametersClass::class, 'setStdClass');
+        $container->set(stdClass::class, new stdClass());
+        $object = new SimpleConstructorParametersClass(new stdClass());
+        $container->applyInflections($object);
+
+        $this->assertSame($container->get(stdClass::class), $object->getItem());
+    }
+
+    /**
+     * @test
+     */
+    public function canApplyInflectionsOnManyInstances()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
+        $test1 = $container->get(TestClass::class);
+        $test2 = $container->get(TestClass::class);
+        $test3 = $container->get(TestClass::class);
+
+        $this->assertSame(42, $test1->getValue());
+        $this->assertSame(42, $test2->getValue());
+        $this->assertSame(42, $test3->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canAlias()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, TestClass::class);
+        $container->alias(TestClassContract::class, 'test');
+        $container->alias(TestClassContract::class, 'alias');
+
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
+        $this->assertInstanceOf(TestClassContract::class, $container->get('test'));
+        $this->assertInstanceOf(TestClassContract::class, $container->get('alias'));
+    }
+
+    /**
+     * @test
+     */
+    public function canSetWithAlias()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, TestClass::class, ['test', 'alias']);
+
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
+        $this->assertInstanceOf(TestClassContract::class, $container->get('test'));
+        $this->assertInstanceOf(TestClassContract::class, $container->get('alias'));
+    }
+
+    /**
+     * @test
      * @expectedException \Interop\Container\Exception\NotFoundException
      */
     public function throwsNotFoundExceptionIfNotResolvable()
     {
         $container = new Abava\Container\Container;
         $container->get(TestClassContract::class);
+    }
+
+    /**
+     * @test
+     * @expectedException Exception
+     */
+    public function throwsExceptionIfCallingNotCallable()
+    {
+        $container = new Abava\Container\Container;
+        $container->call(42);
+    }
+
+    /**
+     * @test
+     * @expectedException Exception
+     */
+    public function throwsExceptionIfInflectionMethodDoesNotExist()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'unknownMethod');
+    }
+
+    /**
+     * @test
+     * @expectedException Exception
+     */
+    public function throwsExceptionIfAliasIsInvalid()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, TestClass::class, ['test']);
+        $container->alias(stdClass::class, 'test');
+    }
+
+    /**
+     * @test
+     * @expectedException Exception
+     */
+    public function throwsExceptionIfIdIsInvalid()
+    {
+        $container = new Abava\Container\Container;
+        $container->set('Some unknown interface', TestClass::class);
+    }
+
+    /**
+     * @test
+     * @expectedException Exception
+     */
+    public function throwsExceptionIfEntryIsInvalid()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, 42);
+    }
+
+    /**
+     * @test
+     * @expectedException Exception
+     */
+    public function throwsExceptionIfEntryClassNameIsInvalid()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, 'Some unknown class');
     }
 
 }
@@ -283,7 +493,7 @@ class SimpleConstructorParametersClass
 
     public function setStdClass(stdClass $item)
     {
-        return $item;
+        $this->item = $item;
     }
 }
 
@@ -337,6 +547,14 @@ class TestClassFactory
     public function create()
     {
         return new TestClass($this->dependency);
+    }
+
+    public function createAndSetValue(stdClass $value)
+    {
+        $test = $this->create();
+        $test->setValue($value);
+
+        return $test;
     }
 }
 

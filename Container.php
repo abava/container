@@ -253,7 +253,7 @@ class Container implements ContainerContract
      */
     protected function addAlias(string $id, string $alias)
     {
-        $this->aliases[$this->normalize($id)] = $this->normalize($alias);
+        $this->aliases[$this->normalize($alias)] = $this->normalize($id);
     }
 
     /**
@@ -519,8 +519,6 @@ class Container implements ContainerContract
     /**
      * Forbid container cloning
      */
-    private function __clone()
-    {
-    }
+    private function __clone(){}
 
 }

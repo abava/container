@@ -6,6 +6,7 @@ use Abava\Container\Contract\Container as ContainerContract;
 use Abava\Container\Exception\ContainerException;
 use Abava\Container\Exception\NotFoundException;
 use Closure;
+use InvalidArgumentException;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
@@ -159,7 +160,7 @@ class Container implements ContainerContract
             // we have not instantiated invokable class here
             $callable = [$callable, '__invoke'];
         } elseif (!is_callable($callable)) {
-            throw new \InvalidArgumentException(sprintf("Callable expected, '%s' is given.", gettype($callable)));
+            throw new InvalidArgumentException(sprintf("Callable expected, '%s' is given.", gettype($callable)));
         }
 
         return ($this->createFactoryFromCallable($callable))($arguments);
@@ -214,7 +215,7 @@ class Container implements ContainerContract
     {
         $this->validateId($id);
         if (!method_exists($id, $method)) {
-            throw new ContainerException(sprintf('Method "%s" not found in "%s"', $method, $id));
+            throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s"', $method, $id));
         }
 
         $this->addInflection($id, $method, $arguments);
@@ -461,7 +462,7 @@ class Container implements ContainerContract
      *
      * @param string $id
      * @param $entry
-     * @throws ContainerException
+     * @throws InvalidArgumentException
      */
     protected function setDefinition(string $id, $entry)
     {
@@ -473,7 +474,7 @@ class Container implements ContainerContract
         } elseif (is_string($entry)) {
 
             if (!class_exists($entry)) {
-                throw new ContainerException(sprintf('Class "%s" does not exist', $entry));
+                throw new InvalidArgumentException(sprintf('Class "%s" does not exist', $entry));
             }
             $this->classDefinitions[$id] = $entry;
 
@@ -481,7 +482,7 @@ class Container implements ContainerContract
             $this->instances[$id] = $entry;
             $this->shared[$id] = true;
         } else {
-            throw new ContainerException(sprintf('Invalid entry "%s" type', $id));
+            throw new InvalidArgumentException(sprintf('Invalid entry "%s" type', $id));
         }
 
         $this->keys[$id] = true;
@@ -491,12 +492,12 @@ class Container implements ContainerContract
      * Validate entry alias. Throw an Exception in case of invalid value.
      *
      * @param string $alias
-     * @throws ContainerException
+     * @throws InvalidArgumentException
      */
     protected function validateAlias($alias)
     {
         if (!$this->isValidAlias($alias)) {
-            throw new ContainerException(sprintf('Invalid alias "%s"', $alias));
+            throw new InvalidArgumentException(sprintf('Invalid alias "%s"', $alias));
         }
     }
 
@@ -505,12 +506,12 @@ class Container implements ContainerContract
      *
      * @param string $id
      * @return void
-     * @throws ContainerException
+     * @throws InvalidArgumentException
      */
     protected function validateId(string $id)
     {
         if (!interface_exists($id) && !class_exists($id)) {
-            throw new ContainerException(
+            throw new InvalidArgumentException(
                 sprintf('Invalid id "%s". Container entry id must be an existing interface or class name.', $id)
             );
         }

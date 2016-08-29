@@ -408,7 +408,7 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException Exception
+     * @expectedException InvalidArgumentException
      */
     public function throwsExceptionIfCallingNotCallable()
     {
@@ -418,7 +418,7 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException Exception
+     * @expectedException InvalidArgumentException
      */
     public function throwsExceptionIfInflectionMethodDoesNotExist()
     {
@@ -428,7 +428,7 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException Exception
+     * @expectedException InvalidArgumentException
      */
     public function throwsExceptionIfAliasIsInvalid()
     {
@@ -439,7 +439,7 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException Exception
+     * @expectedException InvalidArgumentException
      */
     public function throwsExceptionIfIdIsInvalid()
     {
@@ -449,7 +449,7 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException Exception
+     * @expectedException InvalidArgumentException
      */
     public function throwsExceptionIfEntryIsInvalid()
     {
@@ -459,7 +459,7 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException Exception
+     * @expectedException InvalidArgumentException
      */
     public function throwsExceptionIfEntryClassNameIsInvalid()
     {

@@ -211,10 +211,10 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canResolveSingletonFromClosure()
+    public function canResolveSharedFromClosure()
     {
         $container = new Abava\Container\Container;
-        $container->singleton(stdClass::class, function () {
+        $container->share(stdClass::class, function () {
             return new stdClass;
         });
 

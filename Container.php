@@ -239,7 +239,7 @@ class Container implements ContainerContract
     /**
      * {@inheritdoc}
      */
-    public function singleton(string $id, $entry, array $aliases = [])
+    public function share(string $id, $entry, array $aliases = [])
     {
         $this->set($id, $entry, $aliases);
         $this->shared[$this->normalize($id)] = true;

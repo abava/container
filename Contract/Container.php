@@ -62,5 +62,5 @@ interface Container extends ContainerInterface
      * @param array $aliases
      * @return void
      */
-    public function singleton(string $id, $entry, array $aliases = []);
+    public function share(string $id, $entry, array $aliases = []);
 }

@@ -3,6 +3,7 @@
 namespace Abava\Container;
 
 use Abava\Container\Contract\Container as ContainerContract;
+use Abava\Container\Exception\CircularReferenceException;
 use Abava\Container\Exception\ContainerException;
 use Abava\Container\Exception\NotFoundException;
 use Closure;
@@ -12,6 +13,7 @@ use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
+use Throwable;
 
 /**
  * Class Container
@@ -76,6 +78,13 @@ class Container implements ContainerContract
      * @var string[]
      */
     protected $keys = [];
+
+    /**
+     * Array of container entry identifiers currently being resolved.
+     *
+     * @var string[]
+     */
+    protected $resolving = [];
 
     /**
      * Array of instances identifiers marked as shared.
@@ -152,7 +161,7 @@ class Container implements ContainerContract
 
     /**
      * @inheritDoc
-     * @param callable|string $callable Callable to call OR class name to instantiate and invoke
+     * @param callable|string $callable Callable to call OR class name to instantiate and invoke.
      */
     public function call($callable, array $arguments = [])
     {
@@ -173,29 +182,44 @@ class Container implements ContainerContract
     {
         $id = $this->resolveAlias($id);
         if (!$this->has($id)) {
-            throw new NotFoundException(sprintf('Unable to resolve "%s"', $id));
+            throw new NotFoundException(sprintf('Unable to resolve "%s".', $id));
         }
 
         $id = $this->normalize($id);
 
-        // Check shared instances first
+        // Check shared instances first.
         if (isset($this->instances[$id])) {
             return $this->instances[$id];
         }
 
-        // Create instance factory closure
-        if (!isset($this->factories[$id])) {
-            $this->factories[$id] = $this->createEntryFactory($id);
+        if (isset($this->resolving[$id])) {
+            throw new CircularReferenceException($id, array_keys($this->resolving));
         }
 
-        // Instantiate resolved object and apply inflections
-        $object = $this->factories[$id]($arguments);
-        $this->applyInflections($object);
+        // Mark entry as being resolved to handle circular references.
+        $this->resolving[$id] = true;
 
-        // Cache shared instances
-        if (isset($this->shared[$id])) {
-            $this->instances[$id] = $object;
+        try {
+            // Create instance factory closure
+            if (!isset($this->factories[$id])) {
+                $this->factories[$id] = $this->createEntryFactory($id);
+            }
+
+            // Instantiate resolved object and apply inflections.
+            $object = $this->factories[$id]($arguments);
+            $this->applyInflections($object);
+
+            // Cache shared instances.
+            if (isset($this->shared[$id])) {
+                $this->instances[$id] = $object;
+            }
+
+        } catch (Throwable $e) {
+            unset($this->resolving[$id]);
+            throw $e;
         }
+
+        unset($this->resolving[$id]);
 
         return $object;
     }
@@ -215,7 +239,7 @@ class Container implements ContainerContract
     {
         $this->validateId($id);
         if (!method_exists($id, $method)) {
-            throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s"', $method, $id));
+            throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s".', $method, $id));
         }
 
         $this->addInflection($id, $method, $arguments);
@@ -342,6 +366,19 @@ class Container implements ContainerContract
     }
 
     /**
+     * Create reflector depending on callable type.
+     *
+     * @param callable|string|array $callable
+     * @return ReflectionFunction|ReflectionMethod|ReflectionFunctionAbstract
+     */
+    protected function createReflector($callable): ReflectionFunctionAbstract
+    {
+        return is_array($callable)
+            ? new ReflectionMethod($callable[0], $callable[1])
+            : new ReflectionFunction($callable);
+    }
+
+    /**
      * Create argument resolver closure for subject function.
      *
      * @param ReflectionFunctionAbstract $function
@@ -371,24 +408,11 @@ class Container implements ContainerContract
                 }
 
                 throw new ContainerException(sprintf(
-                    'Unable to resolve parameter "%s" value for "%s" function (method)', $name, $function->getName()
+                    'Unable to resolve parameter "%s" value for "%s" function (method).', $name, $function->getName()
                 ));
 
             }, $function->getParameters());
         };
-    }
-
-    /**
-     * Create reflector depending on callable type.
-     *
-     * @param callable|string|array $callable
-     * @return ReflectionFunction|ReflectionMethod|ReflectionFunctionAbstract
-     */
-    protected function createReflector($callable): ReflectionFunctionAbstract
-    {
-        return is_array($callable)
-            ? new ReflectionMethod($callable[0], $callable[1])
-            : new ReflectionFunction($callable);
     }
 
     /**
@@ -474,7 +498,7 @@ class Container implements ContainerContract
         } elseif (is_string($entry)) {
 
             if (!class_exists($entry)) {
-                throw new InvalidArgumentException(sprintf('Class "%s" does not exist', $entry));
+                throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $entry));
             }
             $this->classDefinitions[$id] = $entry;
 
@@ -482,7 +506,7 @@ class Container implements ContainerContract
             $this->instances[$id] = $entry;
             $this->shared[$id] = true;
         } else {
-            throw new InvalidArgumentException(sprintf('Invalid entry "%s" type', $id));
+            throw new InvalidArgumentException(sprintf('Invalid entry "%s" type.', $id));
         }
 
         $this->keys[$id] = true;
@@ -497,7 +521,7 @@ class Container implements ContainerContract
     protected function validateAlias($alias)
     {
         if (!$this->isValidAlias($alias)) {
-            throw new InvalidArgumentException(sprintf('Invalid alias "%s"', $alias));
+            throw new InvalidArgumentException(sprintf('Invalid alias "%s".', $alias));
         }
     }
 
@@ -518,8 +542,11 @@ class Container implements ContainerContract
     }
 
     /**
-     * Forbid container cloning
+     * Forbid container cloning.
+     * @codeCoverageIgnore
      */
-    private function __clone(){}
+    private function __clone()
+    {
+    }
 
 }

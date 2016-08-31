@@ -15,17 +15,163 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canGetSelfInstance()
+    public function canAlias()
     {
-        $this->assertInstanceOf(\Abava\Container\Contract\Container::class, \Abava\Container\Container::getInstance());
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, TestClass::class);
+        $container->alias(TestClassContract::class, 'test');
+        $container->alias(TestClassContract::class, 'alias');
+
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
+        $this->assertInstanceOf(TestClassContract::class, $container->get('test'));
+        $this->assertInstanceOf(TestClassContract::class, $container->get('alias'));
     }
 
     /**
      * @test
      */
-    public function isSingleton()
+    public function canApplyInflectionsOnGet()
     {
-        $this->assertSame(\Abava\Container\Container::getInstance(), \Abava\Container\Container::getInstance());
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
+        $result = $container->get(TestClass::class);
+
+        $this->assertSame(42, $result->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canApplyInflectionsOnManyInstances()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
+        $test1 = $container->get(TestClass::class);
+        $test2 = $container->get(TestClass::class);
+        $test3 = $container->get(TestClass::class);
+
+        $this->assertSame(42, $test1->getValue());
+        $this->assertSame(42, $test2->getValue());
+        $this->assertSame(42, $test3->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canApplyInflectionsOnProvidedInstance()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
+        $test = new TestClass(new stdClass());
+        $container->applyInflections($test);
+
+        $this->assertSame(42, $test->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canApplyInflectionsWithResolvedArgs()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(SimpleConstructorParametersClass::class, 'setStdClass');
+        $container->set(stdClass::class, new stdClass());
+        $object = new SimpleConstructorParametersClass(new stdClass());
+        $container->applyInflections($object);
+
+        $this->assertSame($container->get(stdClass::class), $object->getItem());
+    }
+
+    /**
+     * @test
+     */
+    public function canCallCallableFunctionName()
+    {
+        $container = new Abava\Container\Container;
+        $this->assertInstanceOf(TestClassContract::class, $container->call('createTestClass'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClassNameMethod()
+    {
+        $container = new Abava\Container\Container;
+        $result = $container->call('TestClassFactory::createAndSetValue');
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
+        $this->assertInstanceOf(stdClass::class, $result->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClassNameMethodFromArray()
+    {
+        $container = new Abava\Container\Container;
+        $result = $container->call(['TestClassFactory', 'createAndSetValue']);
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
+        $this->assertInstanceOf(stdClass::class, $result->getValue());
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClassNameMethodStatically()
+    {
+        $container = new Abava\Container\Container;
+
+        $this->assertInstanceOf(TestClassContract::class, $container->call('StaticTestFactory::create'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCallClosure()
+    {
+        $container = new Abava\Container\Container;
+        $object = new stdClass();
+        $object->key = 'value';
+        $container->set(stdClass::class, $object);
+        $result = $container->call(function (stdClass $dependency) {
+            return $dependency->key;
+        });
+
+        $this->assertSame('value', $result);
+    }
+
+    /**
+     * @test
+     */
+    public function canCallInvokableClassName()
+    {
+        $container = new Abava\Container\Container;
+        $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactory'));
+    }
+
+    /**
+     * @test
+     */
+    public function canCallInvokableObject()
+    {
+        $container = new Abava\Container\Container;
+        $invokable = new TestClassFactory(new stdClass());
+        $result = $container->call($invokable);
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
+    }
+
+    /**
+     * @test
+     */
+    public function canCallObjectMethodFromArrayCallable()
+    {
+        $container = new Abava\Container\Container;
+        $result = $container->call([new TestClassFactory(new stdClass()), 'createAndSetValue']);
+
+        $this->assertInstanceOf(TestClassContract::class, $result);
+        $this->assertInstanceOf(stdClass::class, $result->getValue());
     }
 
     /**
@@ -44,6 +190,14 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canGetSelfInstance()
+    {
+        $this->assertInstanceOf(\Abava\Container\Contract\Container::class, \Abava\Container\Container::getInstance());
+    }
+
+    /**
+     * @test
+     */
     public function canResolveClassWithConstructorParameters()
     {
         $container = new Abava\Container\Container;
@@ -53,6 +207,17 @@ class ContainerTest extends TestCase
             $container->get('SimpleConstructorParametersClass')
         );
         $this->assertInstanceOf(stdClass::class, $container->get('SimpleConstructorParametersClass')->getItem());
+    }
+
+    /**
+     * @test
+     */
+    public function canResolveFromAbstractClassNameStaticMethod()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, 'StaticTestFactory::create');
+
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
 
     /**
@@ -80,28 +245,6 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canResolveFromClassNameStaticMethod()
-    {
-        $container = new Abava\Container\Container;
-        $container->set(TestClassContract::class, 'TestClassFactory::staticCreate');
-
-        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
-    }
-
-    /**
-     * @test
-     */
-    public function canResolveFromAbstractClassNameStaticMethod()
-    {
-        $container = new Abava\Container\Container;
-        $container->set(TestClassContract::class, 'StaticTestFactory::create');
-
-        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
-    }
-
-    /**
-     * @test
-     */
     public function canResolveFromClassNameMethodArray()
     {
         $container = new Abava\Container\Container;
@@ -113,10 +256,10 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canResolveFromFunctionName()
+    public function canResolveFromClassNameStaticMethod()
     {
         $container = new Abava\Container\Container;
-        $container->set(TestClassContract::class, 'createTestClass');
+        $container->set(TestClassContract::class, 'TestClassFactory::staticCreate');
 
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
@@ -150,17 +293,11 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canResolveFromInvokableObject()
+    public function canResolveFromFunctionName()
     {
-        $factory = Mockery::mock(TestClassFactory::class)
-                          ->shouldReceive('__invoke')
-                          ->withNoArgs()
-                          ->andReturn(Mockery::mock(TestClassContract::class))
-                          ->once()
-                          ->getMock();
-
         $container = new Abava\Container\Container;
-        $container->set(TestClassContract::class, $factory);
+        $container->set(TestClassContract::class, 'createTestClass');
+
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
 
@@ -173,6 +310,23 @@ class ContainerTest extends TestCase
         $container->set(TestClassFactory::class, TestClassFactory::class);
 
         $this->assertInstanceOf(TestClassFactory::class, $container->get(TestClassFactory::class));
+    }
+
+    /**
+     * @test
+     */
+    public function canResolveFromInvokableObject()
+    {
+        $factory = Mockery::mock(TestClassFactory::class)
+                          ->shouldReceive('__invoke')
+                          ->withNoArgs()
+                          ->andReturn(Mockery::mock(TestClassContract::class))
+                          ->once()
+                          ->getMock();
+
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, $factory);
+        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
 
     /**
@@ -191,7 +345,6 @@ class ContainerTest extends TestCase
         $container->set(TestClassContract::class, [$factory, 'create']);
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
-
 
     /**
      * @test
@@ -224,168 +377,6 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canCallCallableFunctionName()
-    {
-        $container = new Abava\Container\Container;
-        $this->assertInstanceOf(TestClassContract::class, $container->call('createTestClass'));
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClassNameMethod()
-    {
-        $container = new Abava\Container\Container;
-        $result = $container->call('TestClassFactory::createAndSetValue');
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-        $this->assertInstanceOf(stdClass::class, $result->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClassNameMethodStatically()
-    {
-        $container = new Abava\Container\Container;
-
-        $this->assertInstanceOf(TestClassContract::class, $container->call('StaticTestFactory::create'));
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClassNameMethodFromArray()
-    {
-        $container = new Abava\Container\Container;
-        $result = $container->call(['TestClassFactory', 'createAndSetValue']);
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-        $this->assertInstanceOf(stdClass::class, $result->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canCallObjectMethodFromArrayCallable()
-    {
-        $container = new Abava\Container\Container;
-        $result = $container->call([new TestClassFactory(new stdClass()), 'createAndSetValue']);
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-        $this->assertInstanceOf(stdClass::class, $result->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClosure()
-    {
-        $container = new Abava\Container\Container;
-        $object = new stdClass();
-        $object->key = 'value';
-        $container->set(stdClass::class, $object);
-        $result = $container->call(function (stdClass $dependency) {
-            return $dependency->key;
-        });
-
-        $this->assertSame('value', $result);
-    }
-
-    /**
-     * @test
-     */
-    public function canCallInvokableObject()
-    {
-        $container = new Abava\Container\Container;
-        $invokable = new TestClassFactory(new stdClass());
-        $result = $container->call($invokable);
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-    }
-
-    /**
-     * @test
-     */
-    public function canCallInvokableClassName()
-    {
-        $container = new Abava\Container\Container;
-        $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactory'));
-    }
-
-    /**
-     * @test
-     */
-    public function canApplyInflectionsOnGet()
-    {
-        $container = new Abava\Container\Container;
-        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
-        $result = $container->get(TestClass::class);
-
-        $this->assertSame(42, $result->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canApplyInflectionsOnProvidedInstance()
-    {
-        $container = new Abava\Container\Container;
-        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
-        $test = new TestClass(new stdClass());
-        $container->applyInflections($test);
-
-        $this->assertSame(42, $test->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canApplyInflectionsWithResolvedArgs()
-    {
-        $container = new Abava\Container\Container;
-        $container->inflect(SimpleConstructorParametersClass::class, 'setStdClass');
-        $container->set(stdClass::class, new stdClass());
-        $object = new SimpleConstructorParametersClass(new stdClass());
-        $container->applyInflections($object);
-
-        $this->assertSame($container->get(stdClass::class), $object->getItem());
-    }
-
-    /**
-     * @test
-     */
-    public function canApplyInflectionsOnManyInstances()
-    {
-        $container = new Abava\Container\Container;
-        $container->inflect(TestClass::class, 'setValue', ['value' => 42]);
-        $test1 = $container->get(TestClass::class);
-        $test2 = $container->get(TestClass::class);
-        $test3 = $container->get(TestClass::class);
-
-        $this->assertSame(42, $test1->getValue());
-        $this->assertSame(42, $test2->getValue());
-        $this->assertSame(42, $test3->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canAlias()
-    {
-        $container = new Abava\Container\Container;
-        $container->set(TestClassContract::class, TestClass::class);
-        $container->alias(TestClassContract::class, 'test');
-        $container->alias(TestClassContract::class, 'alias');
-
-        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
-        $this->assertInstanceOf(TestClassContract::class, $container->get('test'));
-        $this->assertInstanceOf(TestClassContract::class, $container->get('alias'));
-    }
-
-    /**
-     * @test
-     */
     public function canSetWithAlias()
     {
         $container = new Abava\Container\Container;
@@ -398,12 +389,10 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException \Interop\Container\Exception\NotFoundException
      */
-    public function throwsNotFoundExceptionIfNotResolvable()
+    public function isSingleton()
     {
-        $container = new Abava\Container\Container;
-        $container->get(TestClassContract::class);
+        $this->assertSame(\Abava\Container\Container::getInstance(), \Abava\Container\Container::getInstance());
     }
 
     /**
@@ -413,28 +402,9 @@ class ContainerTest extends TestCase
     public function throwsContainerExceptionIfCantResolve()
     {
         $container = new Abava\Container\Container;
-        $container->set(TestClassContract::class, function ($someUnresolvableDependency) {});
+        $container->set(TestClassContract::class, function ($someUnresolvableDependency) {
+        });
         $container->get(TestClassContract::class);
-    }
-
-    /**
-     * @test
-     * @expectedException InvalidArgumentException
-     */
-    public function throwsExceptionIfCallingNotCallable()
-    {
-        $container = new Abava\Container\Container;
-        $container->call(42);
-    }
-
-    /**
-     * @test
-     * @expectedException InvalidArgumentException
-     */
-    public function throwsExceptionIfInflectionMethodDoesNotExist()
-    {
-        $container = new Abava\Container\Container;
-        $container->inflect(TestClass::class, 'unknownMethod');
     }
 
     /**
@@ -452,10 +422,20 @@ class ContainerTest extends TestCase
      * @test
      * @expectedException InvalidArgumentException
      */
-    public function throwsExceptionIfIdIsInvalid()
+    public function throwsExceptionIfCallingNotCallable()
     {
         $container = new Abava\Container\Container;
-        $container->set('Some unknown interface', TestClass::class);
+        $container->call(42);
+    }
+
+    /**
+     * @test
+     * @expectedException InvalidArgumentException
+     */
+    public function throwsExceptionIfEntryClassNameIsInvalid()
+    {
+        $container = new Abava\Container\Container;
+        $container->set(TestClassContract::class, 'Some unknown class');
     }
 
     /**
@@ -472,12 +452,62 @@ class ContainerTest extends TestCase
      * @test
      * @expectedException InvalidArgumentException
      */
-    public function throwsExceptionIfEntryClassNameIsInvalid()
+    public function throwsExceptionIfIdIsInvalid()
     {
         $container = new Abava\Container\Container;
-        $container->set(TestClassContract::class, 'Some unknown class');
+        $container->set('Some unknown interface', TestClass::class);
     }
 
+    /**
+     * @test
+     * @expectedException InvalidArgumentException
+     */
+    public function throwsExceptionIfInflectionMethodDoesNotExist()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(TestClass::class, 'unknownMethod');
+    }
+
+    /**
+     * @test
+     * @expectedException \Interop\Container\Exception\NotFoundException
+     */
+    public function throwsNotFoundExceptionIfNotResolvable()
+    {
+        $container = new Abava\Container\Container;
+        $container->get(TestClassContract::class);
+    }
+
+    /**
+     * @test
+     * @expectedException \Abava\Container\Exception\CircularReferenceException
+     */
+    public function checksDirectCircularDependency()
+    {
+        $container = new Abava\Container\Container;
+        $container->get(D::class);
+    }
+
+    /**
+     * @test
+     * @expectedException \Abava\Container\Exception\CircularReferenceException
+     */
+    public function checksIndirectCircularDependency()
+    {
+        $container = new Abava\Container\Container;
+        $container->get(A::class);
+    }
+
+    /**
+     * @test
+     * @expectedException \Abava\Container\Exception\CircularReferenceException
+     */
+    public function checksInflectionCircularDependency()
+    {
+        $container = new Abava\Container\Container;
+        $container->inflect(E::class, 'setDependency');
+        $container->get(E::class);
+    }
 }
 
 class SimpleConstructorParametersClass
@@ -507,11 +537,6 @@ class SimpleConstructorParametersClass
         $this->item = $item;
     }
 }
-
-interface TestClassContract
-{
-}
-
 
 class TestClass implements TestClassContract
 {
@@ -582,4 +607,64 @@ abstract class StaticTestFactory
         return new TestClass($dependency);
     }
 
+}
+
+interface TestClassContract
+{
+}
+
+
+class A
+{
+    protected $dependency;
+
+    public function __construct(B $dependency)
+    {
+        $this->dependency = $dependency;
+    }
+}
+
+class B
+{
+    protected $dependency;
+
+    public function __construct(C $dependency)
+    {
+        $this->dependency = $dependency;
+    }
+}
+
+class C
+{
+    protected $dependency;
+
+    public function __construct(A $dependency)
+    {
+        $this->dependency = $dependency;
+    }
+}
+
+class D
+{
+    protected $dependency;
+
+    public function __construct(D $dependency)
+    {
+        $this->dependency = $dependency;
+    }
+
+    public function setDependency(D $dependency)
+    {
+        $this->dependency = $dependency;
+    }
+}
+
+class E
+{
+    protected $dependency;
+
+    public function setDependency(D $dependency)
+    {
+        $this->dependency = $dependency;
+    }
 }

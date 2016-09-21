@@ -1,18 +1,18 @@
 <?php declare(strict_types = 1);
 
-namespace Abava\Container\Contract;
+namespace Venta\Container\Contract;
 
 use Interop\Container\ContainerInterface;
 
 /**
- * Interface ContainerContract
+ * Interface Container
  *
- * @package Abava\Container
+ * @package Venta\Container\Contracts
  */
 interface Container extends ContainerInterface
 {
     /**
-     * Add alias for container entry.
+     * Add alias for container service.
      *
      * @param string $id
      * @param string $alias
@@ -35,7 +35,7 @@ interface Container extends ContainerInterface
     public function get($id, array $arguments = []);
 
     /**
-     * Register method to be called after entry instantiation.
+     * Register method to be called after service instantiation.
      *
      * @param string $id
      * @param string $method
@@ -45,22 +45,22 @@ interface Container extends ContainerInterface
     public function inflect(string $id, string $method, array $arguments = []);
 
     /**
-     * Add an entry to the container. It allows to assign multiple aliases to resolve a single definition.
+     * Add an service to the container. It allows to assign multiple aliases to resolve a single definition.
      *
-     * @param string $id Container entry identifier.
-     * @param mixed $entry Container entry definition.
-     * @param array $aliases List of entry identifier aliases container should be able to resolve by.
+     * @param string $id Container service identifier.
+     * @param mixed $service Container service definition.
+     * @param array $aliases List of service identifier aliases container should be able to resolve by.
      * @return void
      */
-    public function set(string $id, $entry, array $aliases = []);
+    public function set(string $id, $service, array $aliases = []);
 
     /**
      * Add shared instance to container.
      *
-     * @param string $id Container entry identifier.
-     * @param mixed $entry
+     * @param string $id Container service identifier.
+     * @param mixed $service
      * @param array $aliases
      * @return void
      */
-    public function share(string $id, $entry, array $aliases = []);
+    public function share(string $id, $service, array $aliases = []);
 }

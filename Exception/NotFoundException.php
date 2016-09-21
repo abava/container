@@ -1,17 +1,27 @@
 <?php declare(strict_types = 1);
 
-
-namespace Abava\Container\Exception;
-
+namespace Venta\Container\Exception;
 
 use Interop\Container\Exception\NotFoundException as NotFoundExceptionInterface;
-use InvalidArgumentException;
 
 /**
  * Class NotFountException
  *
- * @package Abava\Container\Exception
+ * @package Venta\Container\Exception
  */
-class NotFoundException extends InvalidArgumentException implements NotFoundExceptionInterface
+class NotFoundException extends ContainerException implements NotFoundExceptionInterface
 {
+
+    /**
+     * @inheritdoc
+     */
+    protected function createMessage(): string
+    {
+        return sprintf(
+            'Service not found for "%s" id, path: "%s".',
+            $this->serviceId,
+            implode(' -> ', $this->referenceChain)
+        );
+    }
+
 }

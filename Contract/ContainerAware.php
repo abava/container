@@ -1,11 +1,11 @@
 <?php declare(strict_types = 1);
 
-namespace Abava\Container\Contract;
+namespace Venta\Container\Contract;
 
 /**
  * Interface ContainerAware
  *
- * @package Abava\Container\Contract
+ * @package Venta\Container\Contracts
  */
 interface ContainerAware
 {

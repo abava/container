@@ -1,13 +1,13 @@
 <?php declare(strict_types = 1);
 
-namespace Abava\Container;
+namespace Venta\Container;
 
-use Abava\Container\Contract\Container as ContainerContract;
+use Venta\Container\Contract\Container as ContainerContract;
 
 /**
  * Trait ContainerAwareTrait
  *
- * @package Abava\Container
+ * @package Venta\Container
  */
 trait ContainerAwareTrait
 {

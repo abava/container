@@ -1,8 +1,8 @@
 <?php
 
-use Venta\Container\ContainerAwareTrait;
-use Venta\Container\Contract\Container;
 use PHPUnit\Framework\TestCase;
+use Venta\Container\ContainerAwareTrait;
+use Venta\Contracts\Container\Container;
 
 class ContainerAwareTraitTest extends TestCase
 {

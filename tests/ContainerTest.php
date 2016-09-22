@@ -165,7 +165,7 @@ class ContainerTest extends TestCase
      */
     public function canGetSelfInstance()
     {
-        $this->assertInstanceOf(\Venta\Container\Contract\Container::class, \Venta\Container\Container::getInstance());
+        $this->assertInstanceOf(\Venta\Contracts\Container\Container::class, \Venta\Container\Container::getInstance());
     }
 
     /**
@@ -325,12 +325,12 @@ class ContainerTest extends TestCase
     public function canResolveInstanceAsShared()
     {
         $container = new Venta\Container\Container;
-        $container->set(Venta\Container\Contract\Container::class, $this);
+        $container->set(\Venta\Contracts\Container\Container::class, $this);
 
-        $this->assertSame($this, $container->get(Venta\Container\Contract\Container::class));
+        $this->assertSame($this, $container->get(\Venta\Contracts\Container\Container::class));
         $this->assertSame(
-            $container->get(Venta\Container\Contract\Container::class),
-            $container->get(Venta\Container\Contract\Container::class)
+            $container->get(\Venta\Contracts\Container\Container::class),
+            $container->get(\Venta\Contracts\Container\Container::class)
         );
     }
 

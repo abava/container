@@ -2,15 +2,15 @@
 
 namespace Venta\Container;
 
-use Venta\Container\Contract\ArgumentResolver as ArgumentResolverContract;
-use Venta\Container\Contract\Container as ContainerContract;
-use Venta\Container\Contract\ContainerAware;
-use Venta\Container\Exception\ArgumentResolveException;
 use Closure;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
+use Venta\Container\Exception\ArgumentResolveException;
+use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
+use Venta\Contracts\Container\Container as ContainerContract;
+use Venta\Contracts\Container\ContainerAware;
 
 /**
  * Class ResolverTrait

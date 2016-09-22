@@ -2,7 +2,7 @@
 
 namespace Venta\Container;
 
-use Venta\Container\Contract\Container as ContainerContract;
+use Venta\Contracts\Container\Container as ContainerContract;
 
 /**
  * Trait ContainerAwareTrait

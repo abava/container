@@ -2,8 +2,8 @@
 
 namespace Venta\Container;
 
-use Venta\Container\Contract\ArgumentResolver as ArgumentResolverContract;
-use Venta\Container\Contract\ObjectInflector as InflectorContract;
+use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
+use Venta\Contracts\Container\ObjectInflector as InflectorContract;
 
 /**
  * Class ObjectInflector

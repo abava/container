@@ -2,15 +2,15 @@
 
 namespace Venta\Container;
 
-use Venta\Container\Contract\Container as ContainerContract;
-use Venta\Container\Exception\ArgumentResolveException;
-use Venta\Container\Exception\CircularReferenceException;
-use Venta\Container\Exception\NotFoundException;
-use Venta\Container\Exception\ResolveException;
 use Closure;
 use InvalidArgumentException;
 use ReflectionClass;
 use Throwable;
+use Venta\Container\Exception\ArgumentResolveException;
+use Venta\Container\Exception\CircularReferenceException;
+use Venta\Container\Exception\NotFoundException;
+use Venta\Container\Exception\ResolveException;
+use Venta\Contracts\Container\Container as ContainerContract;
 
 /**
  * Class Container
@@ -103,8 +103,8 @@ class Container implements ContainerContract
         ArgumentResolver $resolver = null,
         ObjectInflector $inflector = null
     ) {
-        $this->resolver = $resolver ?? new ArgumentResolver($this);
-        $this->inflector = $inflector ?? new ObjectInflector($this->resolver);
+        $this->resolver = $resolver ? $resolver->setContainer($this) : new ArgumentResolver($this);
+        $this->inflector = $inflector ? $resolver->setContainer($this) :  new ObjectInflector($this->resolver);
     }
 
     /**

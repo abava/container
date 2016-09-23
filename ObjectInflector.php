@@ -38,23 +38,22 @@ final class ObjectInflector implements ObjectInflectorContract
                 continue;
             }
 
-            foreach ($methods as $method => &$inflection) {
+            foreach ($methods as $method => $inflection) {
+                // $inflection may be array of arguments to pass to the method
+                // OR prepared closure to call with the provided object context.
                 if (!is_callable($inflection)) {
 
-                    // Get method reflection.
-                    $reflect = function ($callable) {
-                        return $this->argumentResolver->reflectCallable($callable);
-                    };
+                    // Reflect and resolve method arguments.
+                    $callback = $this->argumentResolver->resolveArguments(
+                        $this->argumentResolver->reflectCallable([$type, $method])
+                    );
 
-                    // Get argument resolver.
-                    $resolve = function ($reflection) {
-                        return $this->argumentResolver->resolveArguments($reflection);
-                    };
+                    // Replace method arguments with provided ones (if any).
+                    $arguments = $callback($inflection);
 
-                    // We replace inflection with callable which has all the arguments already resolved
-                    // to avoid resolving them again if the same method called on another object.
-                    $inflection = function () use ($inflection, $type, $method, $reflect, $resolve) {
-                        $this->$method(...($resolve($reflect([$type, $method])))($inflection));
+                    // Wrap calling method with closure to avoid reflecting / resolving each time inflection applied.
+                    $this->inflections[$type][$method] = $inflection = function () use ($method, $arguments) {
+                        $this->$method(...$arguments);
                     };
                 }
 

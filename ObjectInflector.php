@@ -3,26 +3,23 @@
 namespace Venta\Container;
 
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
-use Venta\Contracts\Container\ObjectInflector as InflectorContract;
+use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 
 /**
- * Class ObjectInflector
+ * Class ObjectInflector.
  *
  * @package Venta\Container
  */
-final class ObjectInflector implements InflectorContract
+final class ObjectInflector implements ObjectInflectorContract
 {
+    use ArgumentResolverAwareTrait;
+
     /**
      * A list of methods with arguments which will be invoked on the subject object.
      *
      * @var string[][]
      */
     private $inflections = [];
-
-    /**
-     * @var ArgumentResolverContract
-     */
-    private $resolver;
 
     /**
      * ObjectInflector constructor.
@@ -33,7 +30,7 @@ final class ObjectInflector implements InflectorContract
     public function __construct(ArgumentResolverContract $resolver, array $inflections = [])
     {
         $this->inflections = $inflections;
-        $this->resolver = $resolver;
+        $this->argumentResolver = $resolver;
     }
 
     /**
@@ -59,12 +56,12 @@ final class ObjectInflector implements InflectorContract
 
                     // Get method reflection.
                     $reflect = function ($callable) {
-                        return $this->resolver->reflectCallable($callable);
+                        return $this->argumentResolver->reflectCallable($callable);
                     };
 
                     // Get argument resolver.
                     $resolve = function ($reflection) {
-                        return $this->resolver->resolveArguments($reflection);
+                        return $this->argumentResolver->resolveArguments($reflection);
                     };
 
                     // We replace inflection with callable which has all the arguments already resolved

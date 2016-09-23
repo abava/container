@@ -3,6 +3,7 @@
 namespace Venta\Container;
 
 use Closure;
+use Interop\Container\ContainerInterface;
 use InvalidArgumentException;
 use ReflectionClass;
 use Throwable;
@@ -10,7 +11,9 @@ use Venta\Container\Exception\ArgumentResolveException;
 use Venta\Container\Exception\CircularReferenceException;
 use Venta\Container\Exception\NotFoundException;
 use Venta\Container\Exception\ResolveException;
+use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
+use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 
 /**
  * Class Container
@@ -34,6 +37,11 @@ class Container implements ContainerContract
     private $aliases = [];
 
     /**
+     * @var ArgumentResolver
+     */
+    private $argumentResolver;
+
+    /**
      * Array of callable definitions.
      *
      * @var callable[]
@@ -55,11 +63,6 @@ class Container implements ContainerContract
     private $factories = [];
 
     /**
-     * @var ObjectInflector
-     */
-    private $inflector;
-
-    /**
      * Array of resolved instances.
      *
      * @var object[]
@@ -74,9 +77,9 @@ class Container implements ContainerContract
     private $keys = [];
 
     /**
-     * @var ArgumentResolver
+     * @var ObjectInflector
      */
-    private $resolver;
+    private $objectInflector;
 
     /**
      * Array of container service identifiers currently being resolved.
@@ -96,15 +99,22 @@ class Container implements ContainerContract
     /**
      * Container constructor.
      *
-     * @param ArgumentResolver|null $resolver
-     * @param ObjectInflector|null $inflector
+     * @param ArgumentResolverContract|null $argumentResolver
+     * @param ObjectInflectorContract|null $objectInflector
      */
     public function __construct(
-        ArgumentResolver $resolver = null,
-        ObjectInflector $inflector = null
+        ArgumentResolverContract $argumentResolver = null,
+        ObjectInflectorContract $objectInflector = null
     ) {
-        $this->resolver = $resolver ? $resolver->setContainer($this) : new ArgumentResolver($this);
-        $this->inflector = $inflector ? $resolver->setContainer($this) :  new ObjectInflector($this->resolver);
+        $this->argumentResolver = $argumentResolver
+            ? $argumentResolver->setContainer($this)
+            : new ArgumentResolver($this);
+
+        $this->objectInflector = $objectInflector
+            ? $objectInflector->setArgumentResolver($this->argumentResolver)
+            : new ObjectInflector($this->argumentResolver);
+
+        $this->share(ContainerContract::class, $this, ['container', ContainerInterface::class]);
     }
 
     /**
@@ -194,7 +204,7 @@ class Container implements ContainerContract
             throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s".', $method, $id));
         }
 
-        $this->inflector->addInflection($this->normalize($id), $method, $arguments);
+        $this->objectInflector->addInflection($this->normalize($id), $method, $arguments);
     }
 
     /**
@@ -284,7 +294,8 @@ class Container implements ContainerContract
         if (is_array($callable)) {
             return function (array $arguments = []) use ($callable) {
 
-                $reflection = $this->resolver->reflectCallable($callable);
+                $reflection = $this->argumentResolver->reflectCallable($callable);
+                $resolve = $this->argumentResolver->resolveArguments($reflection);
 
                 if ($reflection->isStatic()) {
                     $object = null;
@@ -294,14 +305,15 @@ class Container implements ContainerContract
                     $object = $callable[0];
                 }
 
-                return $reflection->invokeArgs($object, ($this->resolver->resolveArguments($reflection))($arguments));
+                return $reflection->invokeArgs($object, $resolve($arguments));
             };
         }
 
         return function (array $arguments = []) use ($callable) {
-            return $callable(
-                ...($this->resolver->resolveArguments($this->resolver->reflectCallable($callable)))($arguments)
-            );
+            $reflection = $this->argumentResolver->reflectCallable($callable);
+            $resolve = $this->argumentResolver->resolveArguments($reflection);
+
+            return $callable(...$resolve($arguments));
         };
     }
 
@@ -315,11 +327,11 @@ class Container implements ContainerContract
     {
         $constructor = (new ReflectionClass($className))->getConstructor();
         $resolve = ($constructor && $constructor->getNumberOfParameters())
-            ? $this->resolver->resolveArguments($constructor)
+            ? $this->argumentResolver->resolveArguments($constructor)
             : null;
 
-        return function (array $args = []) use ($className, $resolve) {
-            $object = $resolve ? new $className(...$resolve($args)) : new $className();
+        return function (array $arguments = []) use ($className, $resolve) {
+            $object = $resolve ? new $className(...$resolve($arguments)) : new $className();
 
             return $object;
         };
@@ -402,9 +414,11 @@ class Container implements ContainerContract
     }
 
     /**
+     * Resolve service dependencies and create service instance.
+     *
      * @param string $id
      * @param array $arguments
-     * @return mixed
+     * @return object
      * @throws Throwable
      */
     private function resolveService(string $id, array $arguments = [])
@@ -417,7 +431,7 @@ class Container implements ContainerContract
 
             // Instantiate service and apply inflections.
             $object = $this->factories[$id]($arguments);
-            $this->inflector->applyInflections($object);
+            $this->objectInflector->applyInflections($object);
 
             // Cache shared instances.
             if (isset($this->shared[$id])) {

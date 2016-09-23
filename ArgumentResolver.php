@@ -10,21 +10,15 @@ use ReflectionParameter;
 use Venta\Container\Exception\ArgumentResolveException;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
-use Venta\Contracts\Container\ContainerAware;
 
 /**
- * Class ResolverTrait
+ * Class ArgumentResolver.
  *
  * @package Venta\Container
  */
-final class ArgumentResolver implements ArgumentResolverContract, ContainerAware
+final class ArgumentResolver implements ArgumentResolverContract
 {
     use ContainerAwareTrait;
-
-    /**
-     * @var ContainerContract
-     */
-    protected $container;
 
     /**
      * ArgumentResolver constructor.
@@ -63,7 +57,7 @@ final class ArgumentResolver implements ArgumentResolverContract, ContainerAware
 
                 // Recursively resolve function arguments.
                 $class = $parameter->getClass();
-                if ($class !== null) {
+                if ($class !== null && $this->container->has($class->getName())) {
                     return $this->container->get($class->getName());
                 }
 

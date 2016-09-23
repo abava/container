@@ -401,6 +401,35 @@ class ContainerTest extends TestCase
 
     /**
      * @test
+     */
+    public function savesReflectionResolveResult()
+    {
+        $closure = function (stdClass $dep) {
+            return new TestClass($dep);
+        };
+        $reflection = new ReflectionFunction($closure);
+        $resolver = Mockery::mock(\Venta\Contracts\Container\ArgumentResolver::class);
+        $resolver->shouldReceive('setContainer')->once();
+        $resolver->shouldReceive('reflectCallable')
+                 ->with($closure)
+                 ->andReturn($reflection)
+                 ->once();
+        $resolver->shouldReceive('resolveArguments')
+                 ->with($reflection)
+                 ->andReturn(function () {
+                     return [new stdClass()];
+                 })
+                 ->once();
+
+        $container = new \Venta\Container\Container($resolver);
+        $container->set(TestClassContract::class, $closure);
+
+        $container->get(TestClassContract::class);
+        $container->get(TestClassContract::class);
+    }
+
+    /**
+     * @test
      * @expectedException \Venta\Container\Exception\ResolveException
      */
     public function throwsContainerExceptionIfCantResolve()

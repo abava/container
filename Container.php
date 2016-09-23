@@ -274,35 +274,37 @@ class Container implements ContainerContract
     private function createServiceFactoryFromCallable($callable): Closure
     {
         if (is_string($callable) && strpos($callable, '::') !== false) {
+            // Replace "ClassName::methodName" string with ["ClassName", "methodName"] array.
             $callable = explode('::', $callable);
         }
 
         if ($this->isConcrete($callable)) {
+            // Callable object is an instance with magic __invoke() method.
             $callable = [$callable, '__invoke'];
         }
 
+        $reflection = $this->argumentResolver->reflectCallable($callable);
+        // Wrap reflected function arguments with closure.
+        $resolve = $this->argumentResolver->resolveArguments($reflection);
+
         if (is_array($callable)) {
-            return function (array $arguments = []) use ($callable) {
+            // We have ["ClassName", "methodName"] or [$object, "methodName"] callable array.
+            if ($reflection->isStatic()) {
+                // Static method doesn't need object to call method on.
+                $object = null;
+            } else {
+                // For non-static method we need class instance.
+                $object = is_string($callable[0]) ? $this->get($callable[0]) : $callable[0];
+            }
 
-                $reflection = $this->argumentResolver->reflectCallable($callable);
-                $resolve = $this->argumentResolver->resolveArguments($reflection);
-
-                if ($reflection->isStatic()) {
-                    $object = null;
-                } elseif (is_string($callable[0])) {
-                    $object = $this->get($callable[0]);
-                } else {
-                    $object = $callable[0];
-                }
-
+            // Wrap with Closure to save reflection resolve results.
+            return function (array $arguments = []) use ($object, $reflection, $resolve) {
                 return $reflection->invokeArgs($object, $resolve($arguments));
             };
         }
 
-        return function (array $arguments = []) use ($callable) {
-            $reflection = $this->argumentResolver->reflectCallable($callable);
-            $resolve = $this->argumentResolver->resolveArguments($reflection);
-
+        // We have Closure or "functionName" string.
+        return function (array $arguments = []) use ($callable, $resolve) {
             return $callable(...$resolve($arguments));
         };
     }

@@ -106,13 +106,11 @@ class Container implements ContainerContract
         ArgumentResolverContract $argumentResolver = null,
         ObjectInflectorContract $objectInflector = null
     ) {
-        $this->argumentResolver = $argumentResolver
-            ? $argumentResolver->setContainer($this)
-            : new ArgumentResolver($this);
+        $this->argumentResolver = $argumentResolver ?: new ArgumentResolver();
+        $this->argumentResolver->setContainer($this);
 
-        $this->objectInflector = $objectInflector
-            ? $objectInflector->setArgumentResolver($this->argumentResolver)
-            : new ObjectInflector($this->argumentResolver);
+        $this->objectInflector = $objectInflector ?: new ObjectInflector();
+        $this->objectInflector->setArgumentResolver($this->argumentResolver);
 
         $this->share(ContainerContract::class, $this, ['container', ContainerInterface::class]);
     }

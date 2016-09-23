@@ -34,6 +34,6 @@
     },
     "require": {
         "php": "^7.0",
-        "container-interop/container-interop": "^1.1"
+        "venta/contracts": "dev-master"
     }
 }

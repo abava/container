@@ -231,14 +231,6 @@ class Container implements ContainerContract
     }
 
     /**
-     * @inheritDoc
-     */
-    protected function getContainer(): Container
-    {
-        return $this;
-    }
-
-    /**
      * Forbid container cloning.
      *
      * @codeCoverageIgnore

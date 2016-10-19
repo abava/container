@@ -21,11 +21,8 @@
     ],
     "autoload": {
         "psr-4": {
-            "Venta\\Container\\": ""
-        },
-        "exclude-from-classmap": [
-            "/tests/"
-        ]
+            "Venta\\Container\\": "src/"
+        }
     },
     "minimum-stability": "dev",
     "require-dev": {

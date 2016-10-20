@@ -4,6 +4,7 @@ namespace Venta\Container\Exception;
 
 use Interop\Container\Exception\ContainerException as ContainerExceptionInterface;
 use ReflectionFunctionAbstract;
+use ReflectionMethod;
 use ReflectionParameter;
 use RuntimeException;
 
@@ -35,9 +36,10 @@ class ArgumentResolveException extends RuntimeException implements ContainerExce
     public function __construct(ReflectionParameter $parameter, ReflectionFunctionAbstract $function, $previous = null)
     {
         parent::__construct(sprintf(
-            'Unable to resolve parameter "%s" value for "%s" function (method).',
-            $parameter->getName(),
-            $function->getName()
+            'Unable to resolve parameter "%s" value for "%s" %s.',
+            $this->formatParameter($parameter),
+            $this->formatFunction($function),
+            $function instanceof ReflectionMethod ? 'method' : 'function'
         ), 0, $previous);
 
         $this->parameter = $parameter;
@@ -58,6 +60,32 @@ class ArgumentResolveException extends RuntimeException implements ContainerExce
     public function getParameter(): ReflectionParameter
     {
         return $this->parameter;
+    }
+
+    /**
+     * Formats function declaration depending on method/function type.
+     *
+     * @param ReflectionFunctionAbstract $function
+     * @return string
+     */
+    private function formatFunction(ReflectionFunctionAbstract $function)
+    {
+        return $function instanceof ReflectionMethod ?
+            $function->getDeclaringClass()->getName() . '::' . $function->getName() :
+            $function->getName();
+    }
+
+    /**
+     * Formats parameter depending on type
+     *
+     * @param ReflectionParameter $parameter
+     * @return string
+     */
+    private function formatParameter(ReflectionParameter $parameter): string
+    {
+        return $parameter->hasType() ?
+            sprintf('%s $%s', $parameter->getType(), $parameter->getName()) :
+            sprintf('$%s', $parameter->getName());
     }
 
 }

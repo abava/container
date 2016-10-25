@@ -3,7 +3,6 @@
 namespace Venta\Container;
 
 use Closure;
-use Interop\Container\ContainerInterface;
 use InvalidArgumentException;
 use ReflectionClass;
 use Throwable;
@@ -11,9 +10,7 @@ use Venta\Container\Exception\ArgumentResolveException;
 use Venta\Container\Exception\CircularReferenceException;
 use Venta\Container\Exception\NotFoundException;
 use Venta\Container\Exception\ResolveException;
-use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
-use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 
 /**
  * Class Container
@@ -98,21 +95,11 @@ class Container implements ContainerContract
 
     /**
      * Container constructor.
-     *
-     * @param ArgumentResolverContract|null $argumentResolver
-     * @param ObjectInflectorContract|null  $objectInflector
      */
-    public function __construct(
-        ArgumentResolverContract $argumentResolver = null,
-        ObjectInflectorContract $objectInflector = null
-    ) {
-        $this->argumentResolver = $argumentResolver ?: new ArgumentResolver;
-        $this->argumentResolver->setContainer($this);
-
-        $this->objectInflector = $objectInflector ?: new ObjectInflector;
-        $this->objectInflector->setArgumentResolver($this->argumentResolver);
-
-        $this->share(ContainerContract::class, $this, ['container', ContainerInterface::class]);
+    public function __construct()
+    {
+        $this->setArgumentResolver(new ArgumentResolver($this))
+             ->setObjectInflector(new ObjectInflector($this->argumentResolver));
     }
 
     /**
@@ -247,6 +234,28 @@ class Container implements ContainerContract
     {
         $this->set($id, $service, $aliases);
         $this->shared[$this->normalize($id)] = true;
+    }
+
+    /**
+     * @param ArgumentResolver $argumentResolver
+     * @return Container
+     */
+    protected function setArgumentResolver(ArgumentResolver $argumentResolver): Container
+    {
+        $this->argumentResolver = $argumentResolver;
+
+        return $this;
+    }
+
+    /**
+     * @param ObjectInflector $objectInflector
+     * @return Container
+     */
+    protected function setObjectInflector(ObjectInflector $objectInflector): Container
+    {
+        $this->objectInflector = $objectInflector;
+
+        return $this;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Venta\Container;
 
+use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 
 /**
@@ -11,7 +12,11 @@ use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
  */
 final class ObjectInflector implements ObjectInflectorContract
 {
-    use ArgumentResolverAwareTrait;
+
+    /**
+     * @var ArgumentResolverContract
+     */
+    private $argumentResolver;
 
     /**
      * A list of methods with arguments which will be invoked on the subject object.
@@ -19,6 +24,16 @@ final class ObjectInflector implements ObjectInflectorContract
      * @var string[][]
      */
     private $inflections = [];
+
+    /**
+     * ObjectInflector constructor.
+     *
+     * @param ArgumentResolverContract $argumentResolver
+     */
+    public function __construct(ArgumentResolverContract $argumentResolver)
+    {
+        $this->argumentResolver = $argumentResolver;
+    }
 
     /**
      * @inheritDoc

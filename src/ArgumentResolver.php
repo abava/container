@@ -9,6 +9,7 @@ use ReflectionMethod;
 use ReflectionParameter;
 use Venta\Container\Exception\ArgumentResolveException;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
+use Venta\Contracts\Container\Container as ContainerContract;
 
 /**
  * Class ArgumentResolver.
@@ -17,7 +18,20 @@ use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
  */
 final class ArgumentResolver implements ArgumentResolverContract
 {
-    use ContainerAwareTrait;
+    /**
+     * @var ContainerContract
+     */
+    protected $container;
+
+    /**
+     * ArgumentResolver constructor.
+     *
+     * @param ContainerContract $container
+     */
+    public function __construct(ContainerContract $container)
+    {
+        $this->container = $container;
+    }
 
     /**
      * @inheritDoc

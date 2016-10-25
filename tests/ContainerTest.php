@@ -126,6 +126,36 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canCallWithPassedArguments()
+    {
+        $container = new Venta\Container\Container;
+
+        $stub = new stdClass;
+        $callable = function(stdClass $item = null) { return $item; };
+
+        $this->assertInstanceOf('stdClass', $container->call($callable));
+        $this->assertNotSame($stub, $container->call($callable));
+        $this->assertSame($stub, $container->callWithArguments($callable, [$stub]));
+
+        $this->expectException('InvalidArgumentException');
+        $this->expectExceptionMessage('Callable expected, \'string\' is given');
+        $container->callWithArguments('asd', []);
+    }
+
+    /**
+     * @test
+     */
+    public function canDefineIfItemsAreCallable()
+    {
+        $container = new Venta\Container\Container;
+
+        $this->assertTrue($container->isCallable(function() {}));
+        $this->assertTrue($container->isCallable('TestClassFactory'));
+    }
+
+    /**
+     * @test
+     */
     public function canCallInvokableObject()
     {
         $container = new Venta\Container\Container;

@@ -100,16 +100,16 @@ class Container implements ContainerContract
      * Container constructor.
      *
      * @param ArgumentResolverContract|null $argumentResolver
-     * @param ObjectInflectorContract|null $objectInflector
+     * @param ObjectInflectorContract|null  $objectInflector
      */
     public function __construct(
         ArgumentResolverContract $argumentResolver = null,
         ObjectInflectorContract $objectInflector = null
     ) {
-        $this->argumentResolver = $argumentResolver ?: new ArgumentResolver();
+        $this->argumentResolver = $argumentResolver ?: new ArgumentResolver;
         $this->argumentResolver->setContainer($this);
 
-        $this->objectInflector = $objectInflector ?: new ObjectInflector();
+        $this->objectInflector = $objectInflector ?: new ObjectInflector;
         $this->objectInflector->setArgumentResolver($this->argumentResolver);
 
         $this->share(ContainerContract::class, $this, ['container', ContainerInterface::class]);
@@ -144,16 +144,24 @@ class Container implements ContainerContract
      */
     public function call($callable, array $arguments = [])
     {
-        if (is_string($callable) && method_exists($callable, '__invoke')) {
-            // We allow to call class by name if `__invoke()` method is implemented.
-            $callable = [$callable, '__invoke'];
-        } elseif (!is_callable($callable)) {
+        if (!$this->isCallableByContainer($callable)) {
             throw new InvalidArgumentException(sprintf("Callable expected, '%s' is given.", gettype($callable)));
         }
 
-        return ($this->createServiceFactoryFromCallable($callable))($arguments);
+        return ($this->createServiceFactoryFromCallable($this->normalizeCallable($callable)))($arguments);
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function callWithArguments($callable, array $arguments)
+    {
+        if (!$this->isCallableByContainer($callable)) {
+            throw new InvalidArgumentException(sprintf("Callable expected, '%s' is given.", gettype($callable)));
+        }
+
+        return ($this->createServiceFactoryFromCallable($this->normalizeCallable($callable), false))($arguments);
+    }
 
     /**
      * @inheritDoc
@@ -203,6 +211,17 @@ class Container implements ContainerContract
         }
 
         $this->objectInflector->addInflection($this->normalize($id), $method, $arguments);
+    }
+
+    /**
+     * Public wrapper for private function.
+     *
+     * @param  mixed $callable
+     * @return bool
+     */
+    public function isCallable($callable): bool
+    {
+        return $this->isCallableByContainer($callable);
     }
 
     /**
@@ -269,9 +288,10 @@ class Container implements ContainerContract
      * Create callable factory with resolved arguments from callable.
      *
      * @param callable $callable
+     * @param bool     $shouldResolveArguments
      * @return Closure
      */
-    private function createServiceFactoryFromCallable($callable): Closure
+    private function createServiceFactoryFromCallable($callable, $shouldResolveArguments = true): Closure
     {
         if (is_string($callable) && strpos($callable, '::') !== false) {
             // Replace "ClassName::methodName" string with ["ClassName", "methodName"] array.
@@ -298,14 +318,15 @@ class Container implements ContainerContract
             }
 
             // Wrap with Closure to save reflection resolve results.
-            return function (array $arguments = []) use ($object, $reflection, $resolve) {
-                return $reflection->invokeArgs($object, $resolve($arguments));
+            return function (array $arguments = []) use ($object, $reflection, $resolve, $shouldResolveArguments) {
+                return $reflection->invokeArgs($object, $shouldResolveArguments ? $resolve($arguments) : $arguments);
             };
         }
 
         // We have Closure or "functionName" string.
-        return function (array $arguments = []) use ($callable, $resolve) {
-            return $callable(...$resolve($arguments));
+        return function (array $arguments = []) use ($callable, $resolve, $shouldResolveArguments) {
+            $arguments = !$shouldResolveArguments ?: $resolve($arguments);
+            return $callable(...$arguments);
         };
     }
 
@@ -327,6 +348,17 @@ class Container implements ContainerContract
 
             return $object;
         };
+    }
+
+    /**
+     * Defines, if Callable is callable by container.
+     *
+     * @param  mixed $callable
+     * @return bool
+     */
+    private function isCallableByContainer($callable): bool
+    {
+        return is_callable($callable) || (is_string($callable) && method_exists($callable, '__invoke'));
     }
 
     /**
@@ -374,10 +406,27 @@ class Container implements ContainerContract
     }
 
     /**
+     * Normalizes callable in case it is object with __invoke method,
+     * passed as string.
+     *
+     * @param  mixed $callable
+     * @return mixed
+     */
+    private function normalizeCallable($callable)
+    {
+        if (is_string($callable) && method_exists($callable, '__invoke')) {
+            // We allow to call class by name if `__invoke()` method is implemented.
+            $callable = [$callable, '__invoke'];
+        }
+
+        return $callable;
+    }
+
+    /**
      * Set new container service definition.
      *
      * @param string $id
-     * @param $service
+     * @param        $service
      * @throws InvalidArgumentException
      */
     private function registerService(string $id, $service)
@@ -409,7 +458,7 @@ class Container implements ContainerContract
      * Resolve service dependencies and create service instance.
      *
      * @param string $id
-     * @param array $arguments
+     * @param array  $arguments
      * @return object
      * @throws Throwable
      */

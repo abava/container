@@ -8,6 +8,13 @@ interface TestClassContract
 {
 }
 
+interface TestClassFactoryContract
+{
+
+    public function create(): TestClassContract;
+
+}
+
 class SimpleConstructorParametersClass
 {
     protected $integer;
@@ -36,6 +43,11 @@ class SimpleConstructorParametersClass
     }
 }
 
+function createTestClass(stdClass $dependency)
+{
+    return new TestClass($dependency);
+}
+
 class TestClass implements TestClassContract
 {
     protected $dependency;
@@ -58,12 +70,7 @@ class TestClass implements TestClassContract
     }
 }
 
-function createTestClass(stdClass $dependency)
-{
-    return new TestClass($dependency);
-}
-
-class TestClassFactory
+class TestClassFactory implements TestClassFactoryContract
 {
     protected $dependency;
 
@@ -82,7 +89,7 @@ class TestClassFactory
         return new TestClass($this->dependency);
     }
 
-    public function create()
+    public function create(): TestClassContract
     {
         return new TestClass($this->dependency);
     }

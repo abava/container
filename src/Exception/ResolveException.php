@@ -18,15 +18,14 @@ class ResolveException extends ContainerException
      */
     public function __construct($entryId, array $referenceChain, ArgumentResolveException $previous)
     {
-        $referenceChain[] = $this->serviceId = $entryId;
-        $this->referenceChain = $referenceChain;
-        Exception::__construct($this->createMessage($previous), 0, $previous);
+        parent::__construct($entryId, $referenceChain, $previous);
     }
 
     /**
      * @inheritDoc
+     * @param ArgumentResolveException $argumentResolveException
      */
-    protected function createMessage(ArgumentResolveException $argumentResolveException = null): string
+    protected function createMessage(Exception $argumentResolveException = null): string
     {
         return sprintf(
             'Unable to resolve parameter "%s" in "%s" function while resolving "%s" path.',

@@ -33,12 +33,13 @@ abstract class ContainerException extends RuntimeException implements ContainerE
      * @param string $entryId
      * @param array $referenceChain
      * @param Exception|null $previous
+     * @internal param string $message
      */
     public function __construct(string $entryId, array $referenceChain = [], Exception $previous = null)
     {
         $referenceChain[] = $this->serviceId = $entryId;
         $this->referenceChain = $referenceChain;
-        parent::__construct($this->createMessage(), 0, $previous);
+        parent::__construct($this->createMessage($previous), 0, $previous);
     }
 
     /**
@@ -64,8 +65,9 @@ abstract class ContainerException extends RuntimeException implements ContainerE
     /**
      * Returns exception message
      *
+     * @param Exception $previous
      * @return string
      */
-    abstract protected function createMessage(): string;
+    abstract protected function createMessage(Exception $previous = null): string;
 
 }

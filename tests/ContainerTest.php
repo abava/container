@@ -1,6 +1,9 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Venta\Container\Container;
+use Venta\Contracts\Container\ArgumentResolver;
+use Venta\Contracts\Container\ObjectInflector;
 
 /**
  * Class ContainerTest
@@ -117,40 +120,23 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canCallInterfaceMethod()
+    {
+        $container = new Venta\Container\Container;
+        $container->set(TestClassFactoryContract::class, function () {
+            return new TestClassFactory(new stdClass());
+        });
+
+        $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactoryContract::create'));
+    }
+
+    /**
+     * @test
+     */
     public function canCallInvokableClassName()
     {
         $container = new Venta\Container\Container;
         $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactory'));
-    }
-
-    /**
-     * @test
-     */
-    public function canCallWithPassedArguments()
-    {
-        $container = new Venta\Container\Container;
-
-        $stub = new stdClass;
-        $callable = function(stdClass $item = null) { return $item; };
-
-        $this->assertInstanceOf('stdClass', $container->call($callable));
-        $this->assertNotSame($stub, $container->call($callable));
-        $this->assertSame($stub, $container->callWithArguments($callable, [$stub]));
-
-        $this->expectException('InvalidArgumentException');
-        $this->expectExceptionMessage('Callable expected, \'string\' is given');
-        $container->callWithArguments('asd', []);
-    }
-
-    /**
-     * @test
-     */
-    public function canDefineIfItemsAreCallable()
-    {
-        $container = new Venta\Container\Container;
-
-        $this->assertTrue($container->isCallable(function() {}));
-        $this->assertTrue($container->isCallable('TestClassFactory'));
     }
 
     /**
@@ -402,6 +388,17 @@ class ContainerTest extends TestCase
 
     /**
      * @test
+     */
+    public function checksIfServiceMethodIsCallable()
+    {
+        $container = new Venta\Container\Container;
+
+        $this->assertTrue($container->isCallable('TestClassFactory::create'));
+        $this->assertFalse($container->isCallable('TestClassFactoryContract::create'));
+    }
+
+    /**
+     * @test
      * @expectedException \Venta\Container\Exception\CircularReferenceException
      */
     public function checksIndirectCircularDependency()
@@ -439,7 +436,6 @@ class ContainerTest extends TestCase
         };
         $reflection = new ReflectionFunction($closure);
         $resolver = Mockery::mock(\Venta\Contracts\Container\ArgumentResolver::class);
-        $resolver->shouldReceive('setContainer')->once();
         $resolver->shouldReceive('reflectCallable')
                  ->with($closure)
                  ->andReturn($reflection)
@@ -451,7 +447,22 @@ class ContainerTest extends TestCase
                  })
                  ->once();
 
-        $container = new \Venta\Container\Container($resolver);
+        $inflector = Mockery::mock(ObjectInflector::class);
+        $inflector->shouldReceive('applyInflections');
+
+        /** @var Container $container */
+        $container = new class($resolver, $inflector) extends Container
+        {
+            /**
+             * @inheritDoc
+             */
+            public function __construct(ArgumentResolver $resolver = null, ObjectInflector $inflector)
+            {
+                $this->setArgumentResolver($resolver);
+                $this->setObjectInflector($inflector);
+            }
+
+        };
         $container->set(TestClassContract::class, $closure);
 
         $container->get(TestClassContract::class);
@@ -529,6 +540,26 @@ class ContainerTest extends TestCase
     {
         $container = new Venta\Container\Container;
         $container->inflect(TestClass::class, 'unknownMethod');
+    }
+
+    /**
+     * @test
+     * @expectedException InvalidArgumentException
+     */
+    public function throwsExceptionOnInvalidCallableCall()
+    {
+        $container = new Venta\Container\Container;
+        $container->call('SomeInvalidCallableToCall');
+    }
+
+    /**
+     * @test
+     * @expectedException Venta\Container\Exception\NotFoundException
+     */
+    public function throwsExceptionWhenCallsUnresolvableServiceMethod()
+    {
+        $container = new Venta\Container\Container;
+        $container->call('TestClassFactoryContract::create');
     }
 
     /**

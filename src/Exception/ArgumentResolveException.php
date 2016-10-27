@@ -35,15 +35,9 @@ class ArgumentResolveException extends RuntimeException implements ContainerExce
      */
     public function __construct(ReflectionParameter $parameter, ReflectionFunctionAbstract $function, $previous = null)
     {
-        parent::__construct(sprintf(
-            'Unable to resolve parameter "%s" value for "%s" %s.',
-            $this->formatParameter($parameter),
-            $this->formatFunction($function),
-            $function instanceof ReflectionMethod ? 'method' : 'function'
-        ), 0, $previous);
-
         $this->parameter = $parameter;
         $this->function = $function;
+        parent::__construct($this->createMessage(), 0, $previous);
     }
 
     /**
@@ -60,6 +54,19 @@ class ArgumentResolveException extends RuntimeException implements ContainerExce
     public function getParameter(): ReflectionParameter
     {
         return $this->parameter;
+    }
+
+    /**
+     * @return string
+     */
+    protected function createMessage(): string
+    {
+        return sprintf(
+            'Unable to resolve parameter "%s" value for "%s" %s.',
+            $this->formatParameter($this->parameter),
+            $this->formatFunction($this->function),
+            $this->function instanceof ReflectionMethod ? 'method' : 'function'
+        );
     }
 
     /**
@@ -87,5 +94,4 @@ class ArgumentResolveException extends RuntimeException implements ContainerExce
             sprintf('%s $%s', $parameter->getType(), $parameter->getName()) :
             sprintf('$%s', $parameter->getName());
     }
-
 }

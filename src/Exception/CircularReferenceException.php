@@ -11,20 +11,11 @@ use Exception;
  */
 class CircularReferenceException extends ContainerException
 {
-    /**
-     * Reference chain parameter is mandatory.
-     *
-     * @inheritDoc
-     */
-    public function __construct(string $entryId, array $referenceChain, Exception $previous = null)
-    {
-        parent::__construct($entryId, $referenceChain, $previous);
-    }
 
     /**
      * @inheritDoc
      */
-    protected function createMessage():string
+    protected function createMessage(Exception $previous = null):string
     {
         return sprintf(
             'Circular reference detected for "%s", path: "%s".',

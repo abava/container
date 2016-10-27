@@ -2,6 +2,7 @@
 
 namespace Venta\Container\Exception;
 
+use Exception;
 use Interop\Container\Exception\NotFoundException as NotFoundExceptionInterface;
 
 /**
@@ -15,7 +16,7 @@ class NotFoundException extends ContainerException implements NotFoundExceptionI
     /**
      * @inheritdoc
      */
-    protected function createMessage(): string
+    protected function createMessage(Exception $previous = null): string
     {
         return sprintf(
             'Service not found for "%s" id, path: "%s".',

@@ -36,8 +36,7 @@ class ObjectInflectorTest extends TestCase
                  ->once();
 
         // Creating inflector, setting resolver, adding inflection.
-        $inflector = new ObjectInflector();
-        $inflector->setArgumentResolver($resolver);
+        $inflector = new ObjectInflector($resolver);
         $inflector->addInflection(TestClass::class, 'setValue', ['value' => 'value']);
 
         // Creating test object.

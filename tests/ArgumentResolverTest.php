@@ -18,7 +18,7 @@ class ArgumentResolverTest extends TestCase
      */
     public function canReflectFunction()
     {
-        $resolver = new ArgumentResolver();
+        $resolver = new ArgumentResolver(Mockery::mock(Container::class));
         $reflection = $resolver->reflectCallable(function () {
         });
 
@@ -30,7 +30,7 @@ class ArgumentResolverTest extends TestCase
      */
     public function canReflectMethod()
     {
-        $resolver = new ArgumentResolver();
+        $resolver = new ArgumentResolver(Mockery::mock(Container::class));
         $reflection = $resolver->reflectCallable([ArgumentResolver::class, 'reflectCallable']);
 
         $this->assertInstanceOf(ReflectionMethod::class, $reflection);
@@ -41,7 +41,7 @@ class ArgumentResolverTest extends TestCase
      */
     public function canResolveOptionalArguments()
     {
-        $resolver = new ArgumentResolver();
+        $resolver = new ArgumentResolver(Mockery::mock(Container::class));
         $function = function (string $scalar = 'reso') {
             return $scalar . 'lved';
         };
@@ -66,8 +66,7 @@ class ArgumentResolverTest extends TestCase
             return $test;
         };
 
-        $resolver = new ArgumentResolver();
-        $resolver->setContainer($container);
+        $resolver = new ArgumentResolver($container);
         $closure = $resolver->resolveArguments(new ReflectionFunction($function));
 
         $arguments = $closure();
@@ -81,7 +80,7 @@ class ArgumentResolverTest extends TestCase
      */
     public function canResolveWithPassedArguments()
     {
-        $resolver = new ArgumentResolver();
+        $resolver = new ArgumentResolver(Mockery::mock(Container::class));
         $function = function (string $scalar) {
             return $scalar . 'd';
         };
@@ -97,7 +96,7 @@ class ArgumentResolverTest extends TestCase
      */
     public function canResolveWithoutArguments()
     {
-        $resolver = new ArgumentResolver();
+        $resolver = new ArgumentResolver(Mockery::mock(Container::class));
         $function = function () {
             return 'resolved';
         };
@@ -123,8 +122,7 @@ class ArgumentResolverTest extends TestCase
             return $test;
         };
 
-        $resolver = new ArgumentResolver();
-        $resolver->setContainer($container);
+        $resolver = new ArgumentResolver($container);
         $closure = $resolver->resolveArguments(new ReflectionFunction($function));
 
         $closure();
@@ -138,7 +136,7 @@ class ArgumentResolverTest extends TestCase
      */
     public function failsToResolveMandatoryScalarArguments()
     {
-        $resolver = new ArgumentResolver();
+        $resolver = new ArgumentResolver(Mockery::mock(Container::class));
         $function = function (string $scalar) {
             return $scalar . 'd';
         };

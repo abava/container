@@ -18,21 +18,6 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canAlias()
-    {
-        $container = new Venta\Container\Container;
-        $container->set(TestClassContract::class, TestClass::class);
-        $container->alias(TestClassContract::class, 'test');
-        $container->alias(TestClassContract::class, 'alias');
-
-        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
-        $this->assertInstanceOf(TestClassContract::class, $container->get('test'));
-        $this->assertInstanceOf(TestClassContract::class, $container->get('alias'));
-    }
-
-    /**
-     * @test
-     */
     public function canApplyInflectionsOnGet()
     {
         $container = new Venta\Container\Container;
@@ -365,19 +350,6 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     */
-    public function canSetWithAlias()
-    {
-        $container = new Venta\Container\Container;
-        $container->set(TestClassContract::class, TestClass::class, ['test', 'alias']);
-
-        $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
-        $this->assertInstanceOf(TestClassContract::class, $container->get('test'));
-        $this->assertInstanceOf(TestClassContract::class, $container->get('alias'));
-    }
-
-    /**
-     * @test
      * @expectedException \Venta\Container\Exception\CircularReferenceException
      */
     public function checksDirectCircularDependency()
@@ -479,17 +451,6 @@ class ContainerTest extends TestCase
         $container->set(TestClassContract::class, function ($someUnresolvableDependency) {
         });
         $container->get(TestClassContract::class);
-    }
-
-    /**
-     * @test
-     * @expectedException InvalidArgumentException
-     */
-    public function throwsExceptionIfAliasIsInvalid()
-    {
-        $container = new Venta\Container\Container;
-        $container->set(TestClassContract::class, TestClass::class, ['test']);
-        $container->alias(stdClass::class, 'test');
     }
 
     /**

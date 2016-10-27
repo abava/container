@@ -29,13 +29,6 @@ class Container implements ContainerContract
     private static $instance;
 
     /**
-     * Array of container service aliases.
-     *
-     * @var string[]
-     */
-    private $aliases = [];
-
-    /**
      * @var ArgumentResolver
      */
     private $argumentResolver;
@@ -120,15 +113,6 @@ class Container implements ContainerContract
 
     /**
      * @inheritDoc
-     */
-    public function alias(string $id, string $alias)
-    {
-        $this->validateAlias($alias);
-        $this->addAlias($id, $alias);
-    }
-
-    /**
-     * @inheritDoc
      * @param callable|string $callable Callable to call OR class name to instantiate and invoke.
      */
     public function call($callable, array $arguments = [])
@@ -144,7 +128,6 @@ class Container implements ContainerContract
         $originalId = $id;
         $id = $this->normalize($id);
         // We try to resolve alias first to get a real service id.
-        $id = $this->aliases[$id] ?? $id;
         if (!$this->isResolvableService($id)) {
             throw new NotFoundException($originalId, $this->resolving);
         }
@@ -206,25 +189,18 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
-    public function set(string $id, $service, array $aliases = [])
+    public function set(string $id, $service)
     {
         $this->validateId($id);
-        foreach ($aliases as $alias) {
-            $this->validateAlias($alias);
-        }
-
         $this->registerService($id, $service);
-        foreach ($aliases as $alias) {
-            $this->addAlias($id, $alias);
-        }
     }
 
     /**
      * {@inheritdoc}
      */
-    public function share(string $id, $service, array $aliases = [])
+    public function share(string $id, $service)
     {
-        $this->set($id, $service, $aliases);
+        $this->set($id, $service);
         $this->shared[$this->normalize($id)] = true;
     }
 
@@ -257,17 +233,6 @@ class Container implements ContainerContract
      */
     private function __clone()
     {
-    }
-
-    /**
-     * Store service alias to the list.
-     *
-     * @param string $id
-     * @param string $alias
-     */
-    private function addAlias(string $id, string $alias)
-    {
-        $this->aliases[$this->normalize($alias)] = $this->normalize($id);
     }
 
     /**
@@ -486,19 +451,6 @@ class Container implements ContainerContract
             throw $e;
         } finally {
             unset($this->resolving[$id]);
-        }
-    }
-
-    /**
-     * Validate service alias. Throw an Exception in case of invalid value.
-     *
-     * @param string $alias
-     * @throws InvalidArgumentException
-     */
-    private function validateAlias(string $alias)
-    {
-        if (isset($this->aliases[$this->normalize($alias)])) {
-            throw new InvalidArgumentException(sprintf('Invalid alias "%s".', $alias));
         }
     }
 

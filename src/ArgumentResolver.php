@@ -6,6 +6,7 @@ use Closure;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
+use ReflectionParameter;
 use Venta\Container\Exception\ArgumentResolveException;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
@@ -48,51 +49,31 @@ final class ArgumentResolver implements ArgumentResolverContract
     public function resolveArguments(ReflectionFunctionAbstract $function): Closure
     {
         return function (array $arguments = []) use ($function) {
+            $parameters = $function->getParameters();
 
-            $resolved = [];
-            foreach ($function->getParameters() as $index => $parameter) {
-                $name = $parameter->getName();
-                if (array_key_exists($name, $arguments)) {
-                    // If passed use argument instead of reflected parameter.
-                    $resolved[] = $arguments[$name];
-                    unset($arguments[$name]);
-                    continue;
-                }
+            // Use passed arguments in place of reflected parameters.
+            $resolved = array_intersect_key($arguments, $parameters);
 
-                $class = $parameter->getClass();
-                if ($class) {
-                    // Try to find matching argument by type-hinted class or interface.
-                    foreach ($arguments as $key => $argument) {
-                        if (is_object($argument) && $argument instanceof $class) {
-                            $resolved[] = $argument;
-                            unset($arguments[$key]);
-                            continue 2;
-                        }
-                    }
-                }
-
-                // Simply pass argument by index, if such exists.
-                if (array_key_exists($index, $arguments)) {
-                    $resolved[] = $arguments[$index];
-                    unset($arguments[$index]);
-                    continue;
-                }
+            // Remaining parameters will be resolved by container.
+            $resolved += array_map(function (ReflectionParameter $parameter) use ($function) {
 
                 // Recursively resolve function arguments.
+                $class = $parameter->getClass();
                 if ($class !== null && $this->container->has($class->getName())) {
-                    $resolved[] = $this->container->get($class->getName());
-                    continue;
+                    return $this->container->get($class->getName());
                 }
 
-                // Use argument default value if defined.
+                // Use argument default value if possible.
                 if ($parameter->isDefaultValueAvailable()) {
-                    $resolved[] = $parameter->getDefaultValue();
-                    continue;
+                    return $parameter->getDefaultValue();
                 }
 
                 // The argument can't be resolved by this resolver
                 throw new ArgumentResolveException($parameter, $function);
-            }
+            }, array_diff_key($parameters, $arguments));
+
+            // Sort combined result array by parameter indexes.
+            ksort($resolved);
 
             return $resolved;
         };

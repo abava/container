@@ -85,7 +85,7 @@ class ArgumentResolverTest extends TestCase
             return $scalar . 'd';
         };
         $closure = $resolver->resolveArguments(new ReflectionFunction($function));
-        $arguments = $closure(['scalar' => 'resolve']);
+        $arguments = $closure(['resolve']);
 
         $this->assertSame(['resolve'], $arguments);
         $this->assertSame('resolved', $function(...$arguments));

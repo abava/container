@@ -48,14 +48,15 @@ final class ArgumentResolver implements ArgumentResolverContract
      */
     public function resolveArguments(ReflectionFunctionAbstract $function): Closure
     {
-        return function (array $arguments = []) use ($function) {
-            $parameters = $function->getParameters();
+        $parameters = $function->getParameters();
 
+        return function (array $arguments = []) use ($function, $parameters) {
             // Use passed arguments in place of reflected parameters.
-            $resolved = array_intersect_key($arguments, $parameters);
+            $provided = array_intersect_key($arguments, $parameters);
 
             // Remaining parameters will be resolved by container.
-            $resolved += array_map(function (ReflectionParameter $parameter) use ($function) {
+            $remaining = array_diff_key($parameters, $arguments);
+            $arguments = $provided + array_map(function (ReflectionParameter $parameter) use ($function) {
 
                 // Recursively resolve function arguments.
                 $class = $parameter->getClass();
@@ -68,14 +69,14 @@ final class ArgumentResolver implements ArgumentResolverContract
                     return $parameter->getDefaultValue();
                 }
 
-                // The argument can't be resolved by this resolver
+                    // The argument can't be resolved by this resolver.
                 throw new ArgumentResolveException($parameter, $function);
-            }, array_diff_key($parameters, $arguments));
+                }, $remaining);
 
             // Sort combined result array by parameter indexes.
-            ksort($resolved);
+            ksort($arguments);
 
-            return $resolved;
+            return $arguments;
         };
     }
 }

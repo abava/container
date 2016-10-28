@@ -123,6 +123,19 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
+    public function factory(string $id, $callable, $shared = false)
+    {
+        if (!$this->isCallable($callable)) {
+            throw new InvalidArgumentException('Invalid callable provided.');
+        }
+        $this->register($id, $shared, function ($id) use ($callable) {
+            $this->callableDefinitions[$id] = $callable;
+        });
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function get($id, array $arguments = [])
     {
         $originalId = $id;
@@ -170,17 +183,29 @@ class Container implements ContainerContract
     }
 
     /**
-     * Public wrapper for private function.
-     *
-     * @param  mixed $callable
-     * @return bool
+     * @inheritDoc
+     */
+    public function instance(string $id, $instance)
+    {
+        if (!$this->isConcrete($instance)) {
+            throw new InvalidArgumentException('Invalid instance provided.');
+        }
+        $this->register($id, true, function ($id) use ($instance) {
+            $this->instances[$id] = $instance;
+        });
+    }
+
+    /**
+     * @inheritDoc
      */
     public function isCallable($callable): bool
     {
         try {
             $callable = $this->normalizeCallable($callable);
 
-            return (is_array($callable) && $this->has($callable[0])) || !is_array($callable);
+            return (is_array($callable)
+                    && (is_object($callable[0]) || (is_string($callable[0]) && $this->has($callable[0]))))
+                   || !is_array($callable);
         } catch (InvalidArgumentException $e) {
             return false;
         }
@@ -189,19 +214,14 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
-    public function set(string $id, $service)
+    public function set(string $id, string $service, $shared = false)
     {
-        $this->validateId($id);
-        $this->registerService($id, $service);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function share(string $id, $service)
-    {
-        $this->set($id, $service);
-        $this->shared[$this->normalize($id)] = true;
+        if (!class_exists($service)) {
+            throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $service));
+        }
+        $this->register($id, $shared, function ($id) use ($service) {
+            $this->classDefinitions[$id] = $service;
+        });
     }
 
     /**
@@ -360,7 +380,7 @@ class Container implements ContainerContract
         }
         if ($this->isConcrete($callable)) {
             if (!method_exists($callable, '__invoke')) {
-                throw new InvalidArgumentException('Invalid callable provided');
+                throw new InvalidArgumentException('Invalid callable provided.');
             }
 
             // Callable object is an instance with magic __invoke() method.
@@ -384,39 +404,23 @@ class Container implements ContainerContract
             return $callable;
         }
 
-        throw new InvalidArgumentException('Invalid callable provided');
+        throw new InvalidArgumentException('Invalid callable provided.');
     }
 
     /**
-     * Set new container service definition.
-     *
      * @param string $id
-     * @param $service
-     * @throws InvalidArgumentException
+     * @param bool $shared
+     * @param Closure $registrationCallback
+     * @return void
      */
-    private function registerService(string $id, $service)
+    private function register(string $id, bool $shared, Closure $registrationCallback)
     {
-        $originalId = $id;
+        $this->validateId($id);
         $id = $this->normalize($id);
-
-        if (is_callable($service)) {
-            $this->callableDefinitions[$id] = $service;
-
-        } elseif (is_string($service)) {
-
-            if (!class_exists($service)) {
-                throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $service));
-            }
-            $this->classDefinitions[$id] = $service;
-
-        } elseif ($this->isConcrete($service)) {
-            $this->instances[$id] = $service;
-            $this->shared[$id] = true;
-        } else {
-            throw new InvalidArgumentException(sprintf('Invalid service "%s" type.', $originalId));
-        }
-
-        $this->keys[$id] = $originalId;
+        unset($this->instances[$id], $this->shared[$id], $this->keys[$id]);
+        $registrationCallback($id);
+        $this->shared[$id] = $shared ?: null;
+        $this->keys[$id] = true;
     }
 
     /**
@@ -447,8 +451,6 @@ class Container implements ContainerContract
             return $object;
         } catch (ArgumentResolveException $resolveException) {
             throw new ResolveException($id, $this->resolving, $resolveException);
-        } catch (Throwable $e) {
-            throw $e;
         } finally {
             unset($this->resolving[$id]);
         }

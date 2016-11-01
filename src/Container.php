@@ -5,7 +5,6 @@ namespace Venta\Container;
 use Closure;
 use InvalidArgumentException;
 use ReflectionClass;
-use Throwable;
 use Venta\Container\Exception\ArgumentResolveException;
 use Venta\Container\Exception\CircularReferenceException;
 use Venta\Container\Exception\NotFoundException;
@@ -21,13 +20,6 @@ use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
  */
 class Container implements ContainerContract
 {
-    /**
-     * Globally available container instance.
-     *
-     * @var ContainerContract
-     */
-    private static $instance;
-
     /**
      * @var ArgumentResolver
      */
@@ -98,20 +90,6 @@ class Container implements ContainerContract
     }
 
     /**
-     * Get container instance.
-     *
-     * @return ContainerContract
-     */
-    public static function getInstance(): ContainerContract
-    {
-        if (static::$instance === null) {
-            static::$instance = new static;
-        }
-
-        return static::$instance;
-    }
-
-    /**
      * @inheritDoc
      * @param callable|string $callable Callable to call OR class name to instantiate and invoke.
      */
@@ -138,11 +116,10 @@ class Container implements ContainerContract
      */
     public function get($id, array $arguments = [])
     {
-        $originalId = $id;
         $id = $this->normalize($id);
         // We try to resolve alias first to get a real service id.
         if (!$this->isResolvableService($id)) {
-            throw new NotFoundException($originalId, $this->resolving);
+            throw new NotFoundException($id, $this->resolving);
         }
 
         // Look up service in resolved instances first.
@@ -153,12 +130,32 @@ class Container implements ContainerContract
         // Detect circular references.
         // We mark service as being resolved to detect circular references through out the resolution chain.
         if (isset($this->resolving[$id])) {
-            throw new CircularReferenceException($originalId, $this->resolving);
+            throw new CircularReferenceException($id, $this->resolving);
         } else {
-            $this->resolving[$id] = $originalId;
+            $this->resolving[$id] = $id;
         }
 
-        return $this->resolveService($id, $arguments);
+        try {
+            // Create service factory closure.
+            if (!isset($this->factories[$id])) {
+                $this->factories[$id] = $this->createServiceFactory($id);
+            }
+
+            // Instantiate service and apply inflections.
+            $object = $this->factories[$id]($arguments);
+            $this->objectInflector->applyInflections($object);
+
+            // Cache shared instances.
+            if (isset($this->shared[$id])) {
+                $this->instances[$id] = $object;
+            }
+
+            return $object;
+        } catch (ArgumentResolveException $resolveException) {
+            throw new ResolveException($id, $this->resolving, $resolveException);
+        } finally {
+            unset($this->resolving[$id]);
+        }
     }
 
     /**
@@ -216,7 +213,7 @@ class Container implements ContainerContract
      */
     public function set(string $id, string $service, $shared = false)
     {
-        if (!class_exists($service)) {
+        if (!$this->isResolvableService($service)) {
             throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $service));
         }
         $this->register($id, $shared, function ($id) use ($service) {
@@ -267,6 +264,7 @@ class Container implements ContainerContract
             return $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
         }
 
+        // TODO: recursive call until class name is passed
         return $this->createServiceFactoryFromClassName($this->classDefinitions[$id] ?? $id);
     }
 
@@ -421,39 +419,6 @@ class Container implements ContainerContract
         $registrationCallback($id);
         $this->shared[$id] = $shared ?: null;
         $this->keys[$id] = true;
-    }
-
-    /**
-     * Resolve service dependencies and create service instance.
-     *
-     * @param string $id
-     * @param array $arguments
-     * @return object
-     * @throws Throwable
-     */
-    private function resolveService(string $id, array $arguments = [])
-    {
-        try {
-            // Create service factory closure.
-            if (!isset($this->factories[$id])) {
-                $this->factories[$id] = $this->createServiceFactory($id);
-            }
-
-            // Instantiate service and apply inflections.
-            $object = $this->factories[$id]($arguments);
-            $this->objectInflector->applyInflections($object);
-
-            // Cache shared instances.
-            if (isset($this->shared[$id])) {
-                $this->instances[$id] = $object;
-            }
-
-            return $object;
-        } catch (ArgumentResolveException $resolveException) {
-            throw new ResolveException($id, $this->resolving, $resolveException);
-        } finally {
-            unset($this->resolving[$id]);
-        }
     }
 
     /**

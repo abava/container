@@ -162,14 +162,6 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
-    public function canGetSelfInstance()
-    {
-        $this->assertInstanceOf(\Venta\Contracts\Container\Container::class, \Venta\Container\Container::getInstance());
-    }
-
-    /**
-     * @test
-     */
     public function canResolveClassWithConstructorParameters()
     {
         $container = new Venta\Container\Container;
@@ -386,14 +378,6 @@ class ContainerTest extends TestCase
         $container = new Venta\Container\Container;
         $container->inflect(E::class, 'setDependency');
         $container->get(E::class);
-    }
-
-    /**
-     * @test
-     */
-    public function isSingleton()
-    {
-        $this->assertSame(\Venta\Container\Container::getInstance(), \Venta\Container\Container::getInstance());
     }
 
     /**

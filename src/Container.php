@@ -91,17 +91,34 @@ class Container implements ContainerContract
 
     /**
      * @inheritDoc
-     * @param callable|string $callable Callable to call OR class name to instantiate and invoke.
      */
-    public function call($callable, array $arguments = [])
+    public function addInflection(string $id, string $method, array $arguments = [])
     {
-        return ($this->createServiceFactoryFromCallable($this->normalizeCallable($callable)))($arguments);
+        $this->validateId($id);
+        if (!method_exists($id, $method)) {
+            throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s".', $method, $id));
+        }
+
+        $this->objectInflector->addInflection($this->normalize($id), $method, $arguments);
     }
 
     /**
      * @inheritDoc
      */
-    public function factory(string $id, $callable, $shared = false)
+    public function bindClass(string $id, string $class, $shared = false)
+    {
+        if (!$this->isResolvableService($class)) {
+            throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));
+        }
+        $this->register($id, $shared, function ($id) use ($class) {
+            $this->classDefinitions[$id] = $class;
+        });
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function bindFactory(string $id, $callable, $shared = false)
     {
         if (!$this->isCallable($callable)) {
             throw new InvalidArgumentException('Invalid callable provided.');
@@ -109,6 +126,28 @@ class Container implements ContainerContract
         $this->register($id, $shared, function ($id) use ($callable) {
             $this->callableDefinitions[$id] = $callable;
         });
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function bindInstance(string $id, $instance)
+    {
+        if (!$this->isConcrete($instance)) {
+            throw new InvalidArgumentException('Invalid instance provided.');
+        }
+        $this->register($id, true, function ($id) use ($instance) {
+            $this->instances[$id] = $instance;
+        });
+    }
+
+    /**
+     * @inheritDoc
+     * @param callable|string $callable Callable to call OR class name to instantiate and invoke.
+     */
+    public function call($callable, array $arguments = [])
+    {
+        return ($this->createServiceFactoryFromCallable($this->normalizeCallable($callable)))($arguments);
     }
 
     /**
@@ -169,32 +208,6 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
-    public function inflect(string $id, string $method, array $arguments = [])
-    {
-        $this->validateId($id);
-        if (!method_exists($id, $method)) {
-            throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s".', $method, $id));
-        }
-
-        $this->objectInflector->addInflection($this->normalize($id), $method, $arguments);
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function instance(string $id, $instance)
-    {
-        if (!$this->isConcrete($instance)) {
-            throw new InvalidArgumentException('Invalid instance provided.');
-        }
-        $this->register($id, true, function ($id) use ($instance) {
-            $this->instances[$id] = $instance;
-        });
-    }
-
-    /**
-     * @inheritDoc
-     */
     public function isCallable($callable): bool
     {
         try {
@@ -206,19 +219,6 @@ class Container implements ContainerContract
         } catch (InvalidArgumentException $e) {
             return false;
         }
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function set(string $id, string $service, $shared = false)
-    {
-        if (!$this->isResolvableService($service)) {
-            throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $service));
-        }
-        $this->register($id, $shared, function ($id) use ($service) {
-            $this->classDefinitions[$id] = $service;
-        });
     }
 
     /**

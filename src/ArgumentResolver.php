@@ -7,7 +7,7 @@ use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
-use Venta\Container\Exception\ArgumentResolveException;
+use Venta\Container\Exception\ArgumentResolverException;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
 
@@ -70,7 +70,7 @@ final class ArgumentResolver implements ArgumentResolverContract
                 }
 
                     // The argument can't be resolved by this resolver.
-                throw new ArgumentResolveException($parameter, $function);
+                    throw new ArgumentResolverException($parameter, $function);
                 }, $remaining);
 
             // Sort combined result array by parameter indexes.

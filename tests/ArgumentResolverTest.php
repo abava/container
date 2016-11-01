@@ -109,7 +109,7 @@ class ArgumentResolverTest extends TestCase
 
     /**
      * @test
-     * @expectedException \Venta\Container\Exception\ArgumentResolveException
+     * @expectedException \Venta\Container\Exception\ArgumentResolverException
      * @expectedExceptionMessage test
      */
     public function failsToResolveMandatoryClassArgumentsContainerMisses()
@@ -131,7 +131,7 @@ class ArgumentResolverTest extends TestCase
     /**
      * @test
      *
-     * @expectedException \Venta\Container\Exception\ArgumentResolveException
+     * @expectedException \Venta\Container\Exception\ArgumentResolverException
      * @expectedExceptionMessage scalar
      */
     public function failsToResolveMandatoryScalarArguments()

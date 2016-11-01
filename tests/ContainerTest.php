@@ -176,6 +176,18 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canResolveContractToContractBinding()
+    {
+        $container = new Venta\Container\Container;
+        $container->bindClass(TestClassContract::class, TestClass::class);
+        $container->bindClass(Contract::class, TestClassContract::class);
+
+        $this->assertInstanceOf(TestClass::class, $container->get(Contract::class));
+    }
+
+    /**
+     * @test
+     */
     public function canResolveFromAbstractClassNameStaticMethod()
     {
         $container = new Venta\Container\Container;
@@ -425,7 +437,7 @@ class ContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException \Venta\Container\Exception\ResolveException
+     * @expectedException \Venta\Container\Exception\UnresolvableDependencyException
      */
     public function throwsContainerExceptionIfCantResolve()
     {
@@ -459,16 +471,6 @@ class ContainerTest extends TestCase
      * @test
      * @expectedException InvalidArgumentException
      */
-    public function throwsExceptionIfEntryIsInvalid()
-    {
-        $container = new Venta\Container\Container;
-        $container->bindClass(TestClassContract::class, 42);
-    }
-
-    /**
-     * @test
-     * @expectedException InvalidArgumentException
-     */
     public function throwsExceptionIfIdIsInvalid()
     {
         $container = new Venta\Container\Container;
@@ -493,6 +495,18 @@ class ContainerTest extends TestCase
     {
         $container = new Venta\Container\Container;
         $container->call('SomeInvalidCallableToCall');
+    }
+
+    /**
+     * @test
+     * @expectedException Venta\Container\Exception\UninstantiableServiceException
+     */
+    public function throwsExceptionWhenBoundToUninstantiableClass()
+    {
+        $container = new Venta\Container\Container;
+        $container->bindClass(TestClassFactoryContract::class, StaticTestFactory::class);
+
+        $container->get(TestClassFactoryContract::class);
     }
 
     /**

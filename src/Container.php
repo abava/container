@@ -5,10 +5,11 @@ namespace Venta\Container;
 use Closure;
 use InvalidArgumentException;
 use ReflectionClass;
-use Venta\Container\Exception\ArgumentResolveException;
+use Venta\Container\Exception\ArgumentResolverException;
 use Venta\Container\Exception\CircularReferenceException;
 use Venta\Container\Exception\NotFoundException;
-use Venta\Container\Exception\ResolveException;
+use Venta\Container\Exception\UninstantiableServiceException;
+use Venta\Container\Exception\UnresolvableDependencyException;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
 use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
@@ -190,8 +191,8 @@ class Container implements ContainerContract
             }
 
             return $object;
-        } catch (ArgumentResolveException $resolveException) {
-            throw new ResolveException($id, $this->resolving, $resolveException);
+        } catch (ArgumentResolverException $resolveException) {
+            throw new UnresolvableDependencyException($id, $this->resolving, $resolveException);
         } finally {
             unset($this->resolving[$id]);
         }
@@ -264,8 +265,11 @@ class Container implements ContainerContract
             return $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
         }
 
-        // TODO: recursive call until class name is passed
-        return $this->createServiceFactoryFromClassName($this->classDefinitions[$id] ?? $id);
+        if (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
+            return $this->createServiceFactory($this->classDefinitions[$id]);
+        }
+
+        return $this->createServiceFactoryFromClass($id);
     }
 
     /**
@@ -303,18 +307,23 @@ class Container implements ContainerContract
     /**
      * Create callable factory with resolved arguments from class name.
      *
-     * @param string $className
+     * @param string $class
      * @return Closure
+     * @throws UninstantiableServiceException
      */
-    private function createServiceFactoryFromClassName(string $className): Closure
+    private function createServiceFactoryFromClass(string $class): Closure
     {
-        $constructor = (new ReflectionClass($className))->getConstructor();
+        $reflection = new ReflectionClass($class);
+        if (!$reflection->isInstantiable()) {
+            throw new UninstantiableServiceException($class, $this->resolving);
+        }
+        $constructor = $reflection->getConstructor();
         $resolve = ($constructor && $constructor->getNumberOfParameters())
             ? $this->argumentResolver->resolveArguments($constructor)
             : null;
 
-        return function (array $arguments = []) use ($className, $resolve) {
-            $object = $resolve ? new $className(...$resolve($arguments)) : new $className();
+        return function (array $arguments = []) use ($class, $resolve) {
+            $object = $resolve ? new $class(...$resolve($arguments)) : new $class();
 
             return $object;
         };

@@ -9,11 +9,11 @@ use ReflectionParameter;
 use RuntimeException;
 
 /**
- * Class ResolveException
+ * Class ArgumentResolverException
  *
  * @package Venta\Container\Exception
  */
-class ArgumentResolveException extends RuntimeException implements ContainerExceptionInterface
+class ArgumentResolverException extends RuntimeException implements ContainerExceptionInterface
 {
 
     /**
@@ -63,35 +63,10 @@ class ArgumentResolveException extends RuntimeException implements ContainerExce
     {
         return sprintf(
             'Unable to resolve parameter "%s" value for "%s" %s.',
-            $this->formatParameter($this->parameter),
-            $this->formatFunction($this->function),
+            $this->parameter->getName(),
+            $this->function->getName(),
             $this->function instanceof ReflectionMethod ? 'method' : 'function'
         );
     }
 
-    /**
-     * Formats function declaration depending on method/function type.
-     *
-     * @param ReflectionFunctionAbstract $function
-     * @return string
-     */
-    private function formatFunction(ReflectionFunctionAbstract $function)
-    {
-        return $function instanceof ReflectionMethod ?
-            $function->getDeclaringClass()->getName() . '::' . $function->getName() :
-            $function->getName();
-    }
-
-    /**
-     * Formats parameter depending on type
-     *
-     * @param ReflectionParameter $parameter
-     * @return string
-     */
-    private function formatParameter(ReflectionParameter $parameter): string
-    {
-        return $parameter->hasType() ?
-            sprintf('%s $%s', $parameter->getType(), $parameter->getName()) :
-            sprintf('$%s', $parameter->getName());
-    }
 }

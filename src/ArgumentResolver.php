@@ -56,7 +56,7 @@ final class ArgumentResolver implements ArgumentResolverContract
 
             // Remaining parameters will be resolved by container.
             $remaining = array_diff_key($parameters, $arguments);
-            $arguments = $provided + array_map(function (ReflectionParameter $parameter) use ($function) {
+            $resolved = array_map(function (ReflectionParameter $parameter) use ($function) {
 
                 // Recursively resolve function arguments.
                 $class = $parameter->getClass();
@@ -69,9 +69,12 @@ final class ArgumentResolver implements ArgumentResolverContract
                     return $parameter->getDefaultValue();
                 }
 
-                    // The argument can't be resolved by this resolver.
-                    throw new ArgumentResolverException($parameter, $function);
-                }, $remaining);
+                // The argument can't be resolved by this resolver.
+                throw new ArgumentResolverException($parameter, $function);
+
+            }, $remaining);
+
+            $arguments = $provided + $resolved;
 
             // Sort combined result array by parameter indexes.
             ksort($arguments);

@@ -213,10 +213,13 @@ class Container implements ContainerContract
     {
         try {
             $callable = $this->normalizeCallable($callable);
+            // We were able to normalize it and it's not an array -  definitely callable.
+            if (!is_array($callable)) {
+                return true;
+            }
 
-            return (is_array($callable)
-                    && (is_object($callable[0]) || (is_string($callable[0]) && $this->has($callable[0]))))
-                   || !is_array($callable);
+            // If array represents callable we need to be sure it's an object or a resolvable service id.
+            return is_object($callable[0]) || $this->isResolvableService($callable[0]);
         } catch (InvalidArgumentException $e) {
             return false;
         }
@@ -394,6 +397,7 @@ class Container implements ContainerContract
             return [$callable, '__invoke'];
         }
         if (is_string($callable)) {
+            // Existing function is always callable.
             if (function_exists($callable)) {
                 return $callable;
             }
@@ -407,6 +411,7 @@ class Container implements ContainerContract
             }
         }
 
+        // Is correct callable array.
         if (is_array($callable) && isset($callable[0], $callable[1]) && method_exists($callable[0], $callable[1])) {
             return $callable;
         }
@@ -415,6 +420,9 @@ class Container implements ContainerContract
     }
 
     /**
+     * Registers binding.
+     * After this method call binding can be resolved by container.
+     *
      * @param string $id
      * @param bool $shared
      * @param Closure $registrationCallback
@@ -422,11 +430,20 @@ class Container implements ContainerContract
      */
     private function register(string $id, bool $shared, Closure $registrationCallback)
     {
+        // Check if correct service is provided.
         $this->validateId($id);
         $id = $this->normalize($id);
+
+        // Clean up previous bindings, if any.
         unset($this->instances[$id], $this->shared[$id], $this->keys[$id]);
+
+        // Register service with provided callback.
         $registrationCallback($id);
+
+        // Mark service as shared when needed.
         $this->shared[$id] = $shared ?: null;
+
+        // Save service key to make it recognizable by container.
         $this->keys[$id] = true;
     }
 

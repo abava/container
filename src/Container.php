@@ -148,7 +148,7 @@ class Container implements ContainerContract
      */
     public function call($callable, array $arguments = [])
     {
-        return ($this->createServiceFactoryFromCallable($this->normalizeCallable($callable)))($arguments);
+        return ($this->createServiceFactoryFromCallable($callable))($arguments);
     }
 
     /**

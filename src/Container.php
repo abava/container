@@ -121,11 +121,13 @@ class Container implements ContainerContract
      */
     public function bindFactory(string $id, $callable, $shared = false)
     {
-        if (!$this->isCallable($callable)) {
+        $normalizedCallable = $this->normalizeCallable($callable);
+        if (!$this->isResolvableCallable($normalizedCallable)) {
             throw new InvalidArgumentException('Invalid callable provided.');
         }
-        $this->register($id, $shared, function ($id) use ($callable) {
-            $this->callableDefinitions[$id] = $callable;
+
+        $this->register($id, $shared, function ($id) use ($normalizedCallable) {
+            $this->callableDefinitions[$id] = $normalizedCallable;
         });
     }
 
@@ -148,7 +150,7 @@ class Container implements ContainerContract
      */
     public function call($callable, array $arguments = [])
     {
-        return ($this->createServiceFactoryFromCallable($callable))($arguments);
+        return ($this->createServiceFactoryFromCallable($this->normalizeCallable($callable)))($arguments);
     }
 
     /**
@@ -212,17 +214,24 @@ class Container implements ContainerContract
     public function isCallable($callable): bool
     {
         try {
-            $callable = $this->normalizeCallable($callable);
-            // We were able to normalize it and it's not an array -  definitely callable.
-            if (!is_array($callable)) {
-                return true;
-            }
-
-            // If array represents callable we need to be sure it's an object or a resolvable service id.
-            return is_object($callable[0]) || $this->isResolvableService($callable[0]);
+            return $this->isResolvableCallable($this->normalizeCallable($callable));
         } catch (InvalidArgumentException $e) {
             return false;
         }
+    }
+
+    /**
+     * Verifies that provided callable can be called by service container.
+     *
+     * @param $normalizedCallable
+     * @return bool
+     */
+    private function isResolvableCallable($normalizedCallable): bool
+    {
+        // If array represents callable we need to be sure it's an object or a resolvable service id.
+        return !is_array($normalizedCallable)
+               || is_object($normalizedCallable[0])
+               || $this->isResolvableService($normalizedCallable[0]);
     }
 
     /**
@@ -268,6 +277,7 @@ class Container implements ContainerContract
             return $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
         }
 
+        // Recursive call allows to bind contract to contract.
         if (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
             return $this->createServiceFactory($this->classDefinitions[$id]);
         }
@@ -278,13 +288,11 @@ class Container implements ContainerContract
     /**
      * Create callable factory with resolved arguments from callable.
      *
-     * @param callable $callable
+     * @param callable $callable Normalized callable.
      * @return Closure
      */
     private function createServiceFactoryFromCallable($callable): Closure
     {
-        $callable = $this->normalizeCallable($callable);
-
         $reflection = $this->argumentResolver->reflectCallable($callable);
         // Wrap reflected function arguments with closure.
         $resolve = $this->argumentResolver->resolveArguments($reflection);
@@ -297,7 +305,7 @@ class Container implements ContainerContract
 
             // Wrap with Closure to save reflection resolve results.
             return function (array $arguments = []) use ($object, $method, $resolve) {
-                return ([$object, $method])(... $resolve($arguments));
+                return ([$object, $method])(...$resolve($arguments));
             };
         }
 

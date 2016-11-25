@@ -41,6 +41,13 @@ class Container implements ContainerContract
     private $classDefinitions = [];
 
     /**
+     * Array of decorator definitions.
+     *
+     * @var callable[]
+     */
+    private $decoratorDefinitions = [];
+
+    /**
      * Array of container service callable factories.
      *
      * @var Closure[]
@@ -156,6 +163,21 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
+    public function decorate($id, callable $callback)
+    {
+        $id = $this->normalize($id);
+
+        // Check if correct id is provided.
+        if (!$this->isResolvableService($id)) {
+            throw new InvalidArgumentException('Invalid id provided.');
+        }
+
+        $this->decoratorDefinitions[$id][] = $callback;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function get($id, array $arguments = [])
     {
         $id = $this->normalize($id);
@@ -166,7 +188,11 @@ class Container implements ContainerContract
 
         // Look up service in resolved instances first.
         if (isset($this->instances[$id])) {
-            return $this->instances[$id];
+            $object = $this->decorateObject($id, $this->instances[$id]);
+            // Delete all decorator callbacks to avoid applying them once more on another get call.
+            unset($this->decoratorDefinitions[$id]);
+
+            return $object;
         }
 
         // Detect circular references.
@@ -186,6 +212,7 @@ class Container implements ContainerContract
             // Instantiate service and apply inflections.
             $object = $this->factories[$id]($arguments);
             $this->objectInflector->applyInflections($object);
+            $object = $this->decorateObject($id, $object);
 
             // Cache shared instances.
             if (isset($this->shared[$id])) {
@@ -218,20 +245,6 @@ class Container implements ContainerContract
         } catch (InvalidArgumentException $e) {
             return false;
         }
-    }
-
-    /**
-     * Verifies that provided callable can be called by service container.
-     *
-     * @param $normalizedCallable
-     * @return bool
-     */
-    private function isResolvableCallable($normalizedCallable): bool
-    {
-        // If array represents callable we need to be sure it's an object or a resolvable service id.
-        return !is_array($normalizedCallable)
-               || is_object($normalizedCallable[0])
-               || $this->isResolvableService($normalizedCallable[0]);
     }
 
     /**
@@ -341,6 +354,25 @@ class Container implements ContainerContract
     }
 
     /**
+     * Applies decoration callbacks to provided instance.
+     *
+     * @param string $id
+     * @param $object
+     * @return object
+     */
+    private function decorateObject(string $id, $object)
+    {
+        if (isset($this->decoratorDefinitions[$id])) {
+            foreach ($this->decoratorDefinitions[$id] as $callback) {
+                $object = $this->call($callback, [$object]);
+                $this->objectInflector->applyInflections($object);
+            }
+        }
+
+        return $object;
+    }
+
+    /**
      * Check if subject service is a closure.
      *
      * @param $service
@@ -360,6 +392,20 @@ class Container implements ContainerContract
     private function isConcrete($service): bool
     {
         return is_object($service) && !$this->isClosure($service);
+    }
+
+    /**
+     * Verifies that provided callable can be called by service container.
+     *
+     * @param $normalizedCallable
+     * @return bool
+     */
+    private function isResolvableCallable($normalizedCallable): bool
+    {
+        // If array represents callable we need to be sure it's an object or a resolvable service id.
+        return !is_array($normalizedCallable)
+               || is_object($normalizedCallable[0])
+               || $this->isResolvableService($normalizedCallable[0]);
     }
 
     /**

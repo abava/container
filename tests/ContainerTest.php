@@ -162,6 +162,65 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canDecorateConcreteInstance()
+    {
+        $container = new Venta\Container\Container;
+        $container->bindInstance(TestClassContract::class, new TestClass(new stdClass));
+        $container->decorate(TestClassContract::class, function ($previous) {
+            return new class($previous) implements TestClassContract
+            {
+            };
+        });
+
+        $concrete = $container->get(TestClassContract::class);
+
+        $this->assertInstanceOf(TestClassContract::class, $concrete);
+        $this->assertNotInstanceOf(TestClass::class, $concrete);
+    }
+
+    /**
+     * @test
+     */
+    public function canDecorateFactoryDefinedBinding()
+    {
+        $container = new Venta\Container\Container;
+        $container->bindFactory(TestClassContract::class, function () {
+            return new TestClass(new stdClass);
+        });
+        $container->decorate(TestClassContract::class, function ($previous) {
+            return new class($previous) implements TestClassContract
+            {
+            };
+        });
+
+        $concrete = $container->get(TestClassContract::class);
+
+        $this->assertInstanceOf(TestClassContract::class, $concrete);
+        $this->assertNotInstanceOf(TestClass::class, $concrete);
+    }
+
+    /**
+     * @test
+     */
+    public function canDecoratePreviousImplementation()
+    {
+        $container = new Venta\Container\Container;
+        $container->bindClass(TestClassContract::class, TestClass::class);
+        $container->decorate(TestClassContract::class, function ($previous) {
+            return new class($previous) implements TestClassContract
+            {
+            };
+        });
+
+        $concrete = $container->get(TestClassContract::class);
+
+        $this->assertInstanceOf(TestClassContract::class, $concrete);
+        $this->assertNotInstanceOf(TestClass::class, $concrete);
+    }
+
+    /**
+     * @test
+     */
     public function canResolveClassWithConstructorParameters()
     {
         $container = new Venta\Container\Container;

@@ -1,0 +1,4 @@
+suites:
+    container_suite:
+        namespace: Venta\Container
+        psr4_prefix: Venta\Container

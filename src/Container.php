@@ -22,7 +22,7 @@ use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 class Container implements ContainerContract
 {
     /**
-     * @var ArgumentResolver
+     * @var ArgumentResolverContract
      */
     private $argumentResolver;
 
@@ -43,7 +43,7 @@ class Container implements ContainerContract
     /**
      * Array of decorator definitions.
      *
-     * @var callable[]
+     * @var callable[][]
      */
     private $decoratorDefinitions = [];
 
@@ -69,7 +69,7 @@ class Container implements ContainerContract
     private $keys = [];
 
     /**
-     * @var ObjectInflector
+     * @var ObjectInflectorContract
      */
     private $objectInflector;
 
@@ -397,7 +397,7 @@ class Container implements ContainerContract
     /**
      * Verifies that provided callable can be called by service container.
      *
-     * @param $normalizedCallable
+     * @param callable $normalizedCallable
      * @return bool
      */
     private function isResolvableCallable($normalizedCallable): bool

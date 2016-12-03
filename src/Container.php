@@ -217,6 +217,8 @@ class Container implements ContainerContract
             // Cache shared instances.
             if (isset($this->shared[$id])) {
                 $this->instances[$id] = $object;
+                // Remove all decorator callbacks to prevent further decorations on concrete instance.
+                unset($this->decoratorDefinitions[$id]);
             }
 
             return $object;

@@ -204,13 +204,8 @@ class Container implements ContainerContract
         }
 
         try {
-            // Create service factory closure.
-            if (!isset($this->factories[$id])) {
-                $this->factories[$id] = $this->createServiceFactory($id);
-            }
-
             // Instantiate service and apply inflections.
-            $object = $this->factories[$id]($arguments);
+            $object = $this->instantiateService($id, $arguments);
             $this->objectInflector->applyInflections($object);
             $object = $this->decorateObject($id, $object);
 
@@ -278,26 +273,6 @@ class Container implements ContainerContract
      */
     private function __clone()
     {
-    }
-
-    /**
-     * Create callable factory for the subject service.
-     *
-     * @param string $id
-     * @return Closure
-     */
-    private function createServiceFactory(string $id): Closure
-    {
-        if (isset($this->callableDefinitions[$id])) {
-            return $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
-        }
-
-        // Recursive call allows to bind contract to contract.
-        if (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
-            return $this->createServiceFactory($this->classDefinitions[$id]);
-        }
-
-        return $this->createServiceFactoryFromClass($id);
     }
 
     /**
@@ -372,6 +347,33 @@ class Container implements ContainerContract
         }
 
         return $object;
+    }
+
+    /**
+     * Create callable factory for the subject service.
+     *
+     * @param string $id
+     * @param array $arguments
+     * @return mixed
+     */
+    private function instantiateService(string $id, array $arguments)
+    {
+        if (isset($this->instances[$id])) {
+            return $this->instances[$id];
+        }
+
+        if (!isset($this->factories[$id])) {
+            if (isset($this->callableDefinitions[$id])) {
+                $this->factories[$id] = $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
+            } elseif (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
+                // Recursive call allows to bind contract to contract.
+                return $this->instantiateService($this->classDefinitions[$id], $arguments);
+            } else {
+                $this->factories[$id] = $this->createServiceFactoryFromClass($id);
+            }
+        }
+
+        return ($this->factories[$id])($arguments);
     }
 
     /**

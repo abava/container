@@ -37,7 +37,7 @@ abstract class ContainerException extends RuntimeException implements ContainerE
      */
     public function __construct(string $entryId, array $referenceChain = [], Exception $previous = null)
     {
-        $referenceChain[] = $this->serviceId = $entryId;
+        $this->serviceId = $entryId;
         $this->referenceChain = $referenceChain;
         parent::__construct($this->createMessage($previous), 0, $previous);
     }

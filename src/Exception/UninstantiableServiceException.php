@@ -18,8 +18,8 @@ class UninstantiableServiceException extends ContainerException
     {
         return sprintf(
             'Unable to instantiate "%s" service, path: "%s".',
-            $this->serviceId,
-            implode(' -> ', $this->referenceChain)
+            $this->serviceId(),
+            implode(' -> ', $this->referenceChain())
         );
     }
 }

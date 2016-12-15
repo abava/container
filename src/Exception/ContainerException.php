@@ -18,14 +18,14 @@ abstract class ContainerException extends RuntimeException implements ContainerE
      *
      * @var array
      */
-    protected $referenceChain;
+    private $referenceChain;
 
     /**
      * Container entry identifier.
      *
      * @var string
      */
-    protected $serviceId;
+    private $serviceId;
 
     /**
      * CircularReferenceException constructor.
@@ -47,7 +47,7 @@ abstract class ContainerException extends RuntimeException implements ContainerE
      *
      * @return array
      */
-    public function getReferenceChain(): array
+    public function referenceChain(): array
     {
         return $this->referenceChain;
     }
@@ -57,9 +57,19 @@ abstract class ContainerException extends RuntimeException implements ContainerE
      *
      * @return string
      */
-    public function getServiceId(): string
+    public function serviceId(): string
     {
         return $this->serviceId;
+    }
+
+    /**
+     * Adds service Ids to the reference chain.
+     *
+     * @param string[] ...$serviceId
+     */
+    protected function addToReferenceChain(string ...$serviceId)
+    {
+        $this->referenceChain = array_merge($this->referenceChain, $serviceId);
     }
 
     /**

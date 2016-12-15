@@ -35,7 +35,7 @@ class UnresolvableDependencyException extends ContainerException
             $this->formatParameter($argumentResolveException->getParameter()),
             $this->formatFunction($argumentResolveException->getFunction()),
             $argumentResolveException->getFunction() instanceof ReflectionMethod ? 'method' : 'function',
-            implode(' -> ', $this->referenceChain)
+            implode(' -> ', $this->referenceChain())
         );
     }
 

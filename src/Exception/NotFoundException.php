@@ -20,8 +20,8 @@ class NotFoundException extends ContainerException implements NotFoundExceptionI
     {
         return sprintf(
             'Service not found for "%s" id, path: "%s".',
-            $this->serviceId,
-            implode(' -> ', $this->referenceChain)
+            $this->serviceId(),
+            implode(' -> ', $this->referenceChain())
         );
     }
 

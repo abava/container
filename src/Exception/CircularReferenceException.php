@@ -18,11 +18,11 @@ class CircularReferenceException extends ContainerException
     protected function createMessage(Exception $previous = null):string
     {
         // Adding the last dependency to the reflection path.
-        $this->referenceChain[] = $this->serviceId;
+        $this->addToReferenceChain($this->serviceId());
         return sprintf(
             'Circular reference detected for "%s", path: "%s".',
-            $this->serviceId,
-            implode(' -> ', $this->referenceChain)
+            $this->serviceId(),
+            implode(' -> ', $this->referenceChain())
         );
     }
 

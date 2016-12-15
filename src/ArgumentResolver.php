@@ -21,7 +21,7 @@ final class ArgumentResolver implements ArgumentResolverContract
     /**
      * @var ContainerContract
      */
-    protected $container;
+    private $container;
 
     /**
      * ArgumentResolver constructor.

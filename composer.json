@@ -1,11 +1,8 @@
 {
     "name": "venta/container",
     "description": "The Venta Container package.",
-    "keywords": [
-        "venta",
-        "container",
-        "di"
-    ],
+    "keywords": ["venta", "container", "di"],
+    "license": "MIT",
     "authors": [
         {
             "name": "Venta Core Team",

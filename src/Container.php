@@ -29,7 +29,7 @@ class Container implements ContainerContract
     /**
      * Array of callable definitions.
      *
-     * @var callable[]
+     * @var ReflectedCallable[]
      */
     private $callableDefinitions = [];
 
@@ -103,10 +103,6 @@ class Container implements ContainerContract
     public function addInflection(string $id, string $method, array $arguments = [])
     {
         $this->validateId($id);
-        if (!method_exists($id, $method)) {
-            throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s".', $method, $id));
-        }
-
         $this->objectInflector->addInflection($this->normalize($id), $method, $arguments);
     }
 
@@ -128,13 +124,16 @@ class Container implements ContainerContract
      */
     public function bindFactory(string $id, $callable, $shared = false)
     {
-        $normalizedCallable = $this->normalizeCallable($callable);
-        if (!$this->isResolvableCallable($normalizedCallable)) {
+        $reflectedCallable = new ReflectedCallable($callable);
+        if (!$this->isResolvableCallable($reflectedCallable)) {
             throw new InvalidArgumentException('Invalid callable provided.');
         }
 
-        $this->register($id, $shared, function ($id) use ($normalizedCallable) {
-            $this->callableDefinitions[$id] = $normalizedCallable;
+        $this->register(
+            $id,
+            $shared,
+            function ($id) use ($reflectedCallable) {
+                $this->callableDefinitions[$id] = $reflectedCallable;
         });
     }
 
@@ -157,7 +156,27 @@ class Container implements ContainerContract
      */
     public function call($callable, array $arguments = [])
     {
-        return ($this->createServiceFactoryFromCallable($this->normalizeCallable($callable)))($arguments);
+        $reflectedCallable = new ReflectedCallable($callable);
+        $reflection = $reflectedCallable->reflection();
+        $arguments = $this->argumentResolver->resolve($reflection, $arguments);
+
+        if ($reflectedCallable->isFunction()) {
+            // We have Closure or "functionName" string.
+            $callable = $reflectedCallable->callable();
+
+            return $callable(...$arguments);
+        }
+
+        list($object, $method) = $reflectedCallable->callable();
+        if ($reflection->isStatic()) {
+            return $object::$method(...$arguments);
+        }
+
+        if (is_string($object)) {
+            $object = $this->get($object);
+        }
+
+        return $object->$method(...$arguments);
     }
 
     /**
@@ -238,7 +257,7 @@ class Container implements ContainerContract
     public function isCallable($callable): bool
     {
         try {
-            return $this->isResolvableCallable($this->normalizeCallable($callable));
+            return $this->isResolvableCallable(new ReflectedCallable($callable));
         } catch (InvalidArgumentException $e) {
             return false;
         }
@@ -278,30 +297,32 @@ class Container implements ContainerContract
     /**
      * Create callable factory with resolved arguments from callable.
      *
-     * @param callable $callable Normalized callable.
+     * @param ReflectedCallable $reflectedCallable
      * @return Closure
      */
-    private function createServiceFactoryFromCallable($callable): Closure
+    private function createServiceFactoryFromCallable(ReflectedCallable $reflectedCallable): Closure
     {
-        $reflection = $this->argumentResolver->reflectCallable($callable);
+        $reflection = $reflectedCallable->reflection();
         // Wrap reflected function arguments with closure.
-        $resolve = $this->argumentResolver->resolveArguments($reflection);
+        $resolve = $this->argumentResolver->createCallback($reflection);
 
-        if (is_array($callable)) {
-            list($object, $method) = $callable;
-            if (!$reflection->isStatic() && is_string($object)) {
-                $object = $this->get($object);
-            }
+        if ($reflectedCallable->isFunction()) {
+            // We have Closure or "functionName" string.
+            $callable = $reflectedCallable->callable();
 
-            // Wrap with Closure to save reflection resolve results.
-            return function (array $arguments = []) use ($object, $method, $resolve) {
-                return ([$object, $method])(...$resolve($arguments));
+            return function (array $arguments = []) use ($callable, $resolve) {
+                return $callable(...$resolve($arguments));
             };
         }
+        list($object, $method) = $reflectedCallable->callable();
 
-        // We have Closure or "functionName" string.
-        return function (array $arguments = []) use ($callable, $resolve) {
-            return $callable(...$resolve($arguments));
+        if (!$reflection->isStatic() && is_string($object)) {
+            $object = $this->get($object);
+        }
+
+        // Wrap with Closure to save reflection resolve results.
+        return function (array $arguments = []) use ($object, $method, $resolve) {
+            return ([$object, $method])(...$resolve($arguments));
         };
     }
 
@@ -320,7 +341,7 @@ class Container implements ContainerContract
         }
         $constructor = $reflection->getConstructor();
         $resolve = ($constructor && $constructor->getNumberOfParameters())
-            ? $this->argumentResolver->resolveArguments($constructor)
+            ? $this->argumentResolver->createCallback($constructor)
             : null;
 
         return function (array $arguments = []) use ($class, $resolve) {
@@ -377,17 +398,6 @@ class Container implements ContainerContract
     }
 
     /**
-     * Check if subject service is a closure.
-     *
-     * @param $service
-     * @return bool
-     */
-    private function isClosure($service): bool
-    {
-        return $service instanceof Closure;
-    }
-
-    /**
      * Check if subject service is an object instance.
      *
      * @param mixed $service
@@ -395,21 +405,23 @@ class Container implements ContainerContract
      */
     private function isConcrete($service): bool
     {
-        return is_object($service) && !$this->isClosure($service);
+        return is_object($service) && !$service instanceof Closure;
     }
 
     /**
      * Verifies that provided callable can be called by service container.
      *
-     * @param callable $normalizedCallable
+     * @param ReflectedCallable $reflectedCallable
      * @return bool
      */
-    private function isResolvableCallable($normalizedCallable): bool
+    private function isResolvableCallable(ReflectedCallable $reflectedCallable): bool
     {
         // If array represents callable we need to be sure it's an object or a resolvable service id.
-        return !is_array($normalizedCallable)
-               || is_object($normalizedCallable[0])
-               || $this->isResolvableService($normalizedCallable[0]);
+        $callable = $reflectedCallable->callable();
+
+        return !is_array($callable)
+               || is_object($callable[0])
+               || $this->isResolvableService($callable[0]);
     }
 
     /**
@@ -432,49 +444,6 @@ class Container implements ContainerContract
     private function normalize(string $id): string
     {
         return ltrim($id, '\\');
-    }
-
-    /**
-     * Normalizes callable converting Class::method into [class, method] and throwing exception on invalid callable.
-     *
-     * @param $callable
-     * @return callable
-     * @throws InvalidArgumentException
-     */
-    private function normalizeCallable($callable)
-    {
-        if ($this->isClosure($callable)) {
-            return $callable;
-        }
-        if ($this->isConcrete($callable)) {
-            if (!method_exists($callable, '__invoke')) {
-                throw new InvalidArgumentException('Invalid callable provided.');
-            }
-
-            // Callable object is an instance with magic __invoke() method.
-            return [$callable, '__invoke'];
-        }
-        if (is_string($callable)) {
-            // Existing function is always callable.
-            if (function_exists($callable)) {
-                return $callable;
-            }
-            if (method_exists($callable, '__invoke')) {
-                // We allow to call class by name if `__invoke()` method is implemented.
-                return [$callable, '__invoke'];
-            }
-            if (strpos($callable, '::') !== false) {
-                // Replace "ClassName::methodName" string with ["ClassName", "methodName"] array.
-                $callable = explode('::', $callable);
-            }
-        }
-
-        // Is correct callable array.
-        if (is_array($callable) && isset($callable[0], $callable[1]) && method_exists($callable[0], $callable[1])) {
-            return $callable;
-        }
-
-        throw new InvalidArgumentException('Invalid callable provided.');
     }
 
     /**

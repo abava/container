@@ -22,16 +22,9 @@ class ObjectInflectorTest extends TestCase
             return array_values(array_merge(['value' => 'to be replaced'], $arguments));
         };
 
-        // Reflecting method to call on inflection.
-        $reflection = new ReflectionMethod(TestClass::class, 'setValue');
-
         // Defining expectations.
-        $resolver->shouldReceive('reflectCallable')
-                 ->with([TestClass::class, 'setValue'])
-                 ->andReturn($reflection)
-                 ->once();
-        $resolver->shouldReceive('resolveArguments')
-                 ->with($reflection)
+        $resolver->shouldReceive('createCallback')
+                 ->with(Mockery::type(ReflectionMethod::class))
                  ->andReturn($callback)
                  ->once();
 

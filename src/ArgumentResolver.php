@@ -3,9 +3,7 @@
 namespace Venta\Container;
 
 use Closure;
-use ReflectionFunction;
 use ReflectionFunctionAbstract;
-use ReflectionMethod;
 use ReflectionParameter;
 use Venta\Container\Exception\ArgumentResolverException;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
@@ -36,27 +34,27 @@ final class ArgumentResolver implements ArgumentResolverContract
     /**
      * @inheritDoc
      */
-    public function reflectCallable($callable): ReflectionFunctionAbstract
+    public function createCallback(ReflectionFunctionAbstract $function): Closure
     {
-        return is_array($callable)
-            ? new ReflectionMethod($callable[0], $callable[1])
-            : new ReflectionFunction($callable);
+        return function (array $arguments = []) use ($function) {
+            return $this->resolve($function, $arguments);
+        };
     }
 
     /**
-     * @inheritDoc
+     * @inheritdoc
      */
-    public function resolveArguments(ReflectionFunctionAbstract $function): Closure
+    public function resolve(ReflectionFunctionAbstract $function, array $arguments = []): array
     {
         $parameters = $function->getParameters();
 
-        return function (array $arguments = []) use ($function, $parameters) {
-            // Use passed arguments in place of reflected parameters.
-            $provided = array_intersect_key($arguments, $parameters);
+        // Use passed arguments in place of reflected parameters.
+        $provided = array_intersect_key($arguments, $parameters);
 
-            // Remaining parameters will be resolved by container.
-            $remaining = array_diff_key($parameters, $arguments);
-            $resolved = array_map(function (ReflectionParameter $parameter) use ($function) {
+        // Remaining parameters will be resolved by container.
+        $remaining = array_diff_key($parameters, $arguments);
+        $resolved = array_map(
+            function (ReflectionParameter $parameter) use ($function) {
 
                 // Recursively resolve function arguments.
                 $class = $parameter->getClass();
@@ -72,14 +70,15 @@ final class ArgumentResolver implements ArgumentResolverContract
                 // The argument can't be resolved by this resolver.
                 throw new ArgumentResolverException($parameter, $function);
 
-            }, $remaining);
+            },
+            $remaining
+        );
 
-            $arguments = $provided + $resolved;
+        $arguments = $provided + $resolved;
 
-            // Sort combined result array by parameter indexes.
-            ksort($arguments);
+        // Sort combined result array by parameter indexes.
+        ksort($arguments);
 
-            return $arguments;
-        };
+        return $arguments;
     }
 }

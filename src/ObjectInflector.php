@@ -2,6 +2,7 @@
 
 namespace Venta\Container;
 
+use InvalidArgumentException;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 
@@ -40,6 +41,10 @@ final class ObjectInflector implements ObjectInflectorContract
      */
     public function addInflection(string $id, string $method, array $arguments = [])
     {
+        if (!method_exists($id, $method)) {
+            throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s".', $method, $id));
+        }
+
         $this->inflections[$id][$method] = $arguments;
     }
 
@@ -59,8 +64,8 @@ final class ObjectInflector implements ObjectInflectorContract
                 if (!is_callable($inflection)) {
 
                     // Reflect and resolve method arguments.
-                    $callback = $this->argumentResolver->resolveArguments(
-                        $this->argumentResolver->reflectCallable([$type, $method])
+                    $callback = $this->argumentResolver->createCallback(
+                        (new ReflectedCallable([$type, $method]))->reflection()
                     );
 
                     // Replace method arguments with provided ones (if any).

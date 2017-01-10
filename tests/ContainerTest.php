@@ -459,14 +459,9 @@ class ContainerTest extends TestCase
         $closure = function (stdClass $dep) {
             return new TestClass($dep);
         };
-        $reflection = new ReflectionFunction($closure);
         $resolver = Mockery::mock(\Venta\Contracts\Container\ArgumentResolver::class);
-        $resolver->shouldReceive('reflectCallable')
-                 ->with($closure)
-                 ->andReturn($reflection)
-                 ->once();
-        $resolver->shouldReceive('resolveArguments')
-                 ->with($reflection)
+        $resolver->shouldReceive('createCallback')
+                 ->with(Mockery::type(ReflectionFunction::class))
                  ->andReturn(function () {
                      return [new stdClass()];
                  })

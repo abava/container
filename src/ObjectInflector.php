@@ -65,7 +65,7 @@ final class ObjectInflector implements ObjectInflectorContract
 
                     // Reflect and resolve method arguments.
                     $callback = $this->argumentResolver->createCallback(
-                        (new ReflectedCallable([$type, $method]))->reflection()
+                        (new Invokable([$type, $method]))->reflection()
                     );
 
                     // Replace method arguments with provided ones (if any).

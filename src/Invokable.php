@@ -9,11 +9,11 @@ use ReflectionFunctionAbstract;
 use ReflectionMethod;
 
 /**
- * Class ReflectedCallable
+ * Class Invokable
  *
  * @package Venta\Container
  */
-class ReflectedCallable
+class Invokable
 {
 
     /**

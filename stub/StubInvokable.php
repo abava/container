@@ -2,7 +2,7 @@
 
 namespace stub\Venta\Container;
 
-class StubCallable
+class StubInvokable
 {
     public static function staticMethod()
     {

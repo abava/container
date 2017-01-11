@@ -29,7 +29,7 @@ class Container implements ContainerContract
     /**
      * Array of callable definitions.
      *
-     * @var ReflectedCallable[]
+     * @var Invokable[]
      */
     private $callableDefinitions = [];
 
@@ -124,7 +124,7 @@ class Container implements ContainerContract
      */
     public function bindFactory(string $id, $callable, $shared = false)
     {
-        $reflectedCallable = new ReflectedCallable($callable);
+        $reflectedCallable = new Invokable($callable);
         if (!$this->isResolvableCallable($reflectedCallable)) {
             throw new InvalidArgumentException('Invalid callable provided.');
         }
@@ -156,7 +156,7 @@ class Container implements ContainerContract
      */
     public function call($callable, array $arguments = [])
     {
-        $reflectedCallable = new ReflectedCallable($callable);
+        $reflectedCallable = new Invokable($callable);
         $reflection = $reflectedCallable->reflection();
         $arguments = $this->argumentResolver->resolve($reflection, $arguments);
 
@@ -257,7 +257,7 @@ class Container implements ContainerContract
     public function isCallable($callable): bool
     {
         try {
-            return $this->isResolvableCallable(new ReflectedCallable($callable));
+            return $this->isResolvableCallable(new Invokable($callable));
         } catch (InvalidArgumentException $e) {
             return false;
         }
@@ -297,10 +297,10 @@ class Container implements ContainerContract
     /**
      * Create callable factory with resolved arguments from callable.
      *
-     * @param ReflectedCallable $reflectedCallable
+     * @param Invokable $reflectedCallable
      * @return Closure
      */
-    private function createServiceFactoryFromCallable(ReflectedCallable $reflectedCallable): Closure
+    private function createServiceFactoryFromCallable(Invokable $reflectedCallable): Closure
     {
         $reflection = $reflectedCallable->reflection();
         // Wrap reflected function arguments with closure.
@@ -411,10 +411,10 @@ class Container implements ContainerContract
     /**
      * Verifies that provided callable can be called by service container.
      *
-     * @param ReflectedCallable $reflectedCallable
+     * @param Invokable $reflectedCallable
      * @return bool
      */
-    private function isResolvableCallable(ReflectedCallable $reflectedCallable): bool
+    private function isResolvableCallable(Invokable $reflectedCallable): bool
     {
         // If array represents callable we need to be sure it's an object or a resolvable service id.
         $callable = $reflectedCallable->callable();

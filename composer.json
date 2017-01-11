@@ -29,5 +29,10 @@
             "Venta\\Container\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "stub\\Venta\\Container\\": "stub/"
+        }
+    },
     "minimum-stability": "dev"
 }

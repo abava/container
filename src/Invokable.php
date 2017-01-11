@@ -29,11 +29,16 @@ class Invokable
     /**
      * ReflectedCallable constructor.
      *
-     * @param callable $callable
+     * @param callable|ReflectionFunctionAbstract $callable
      */
     public function __construct($callable)
     {
-        $this->callable = $this->normalizeCallable($callable);
+        if ($callable instanceof ReflectionFunctionAbstract) {
+            $this->callable = $this->reflectionCallable($callable);
+            $this->reflection = $callable;
+        } else {
+            $this->callable = $this->normalizeCallable($callable);
+        }
     }
 
     /**
@@ -104,6 +109,23 @@ class Invokable
         // Is correct callable array.
         if (is_array($callable) && isset($callable[0], $callable[1]) && method_exists($callable[0], $callable[1])) {
             return $callable;
+        }
+
+        throw new InvalidArgumentException('Invalid callable provided.');
+    }
+
+    /**
+     * @param ReflectionFunctionAbstract $reflection
+     * @return array|Closure|string
+     * @throws InvalidArgumentException
+     */
+    private function reflectionCallable(ReflectionFunctionAbstract $reflection)
+    {
+        if ($reflection instanceof ReflectionMethod) {
+            return [$reflection->class, $reflection->name];
+        }
+        if ($reflection instanceof ReflectionFunction) {
+            return $reflection->isClosure() ? $reflection->getClosure() : $reflection->name;
         }
 
         throw new InvalidArgumentException('Invalid callable provided.');

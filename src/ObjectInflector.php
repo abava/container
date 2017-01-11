@@ -3,6 +3,7 @@
 namespace Venta\Container;
 
 use InvalidArgumentException;
+use ReflectionMethod;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 
@@ -61,15 +62,10 @@ final class ObjectInflector implements ObjectInflectorContract
             foreach ($methods as $method => $inflection) {
                 // $inflection may be array of arguments to pass to the method
                 // OR prepared closure to call with the provided object context.
-                if (!is_callable($inflection)) {
+                if (is_array($inflection)) {
 
                     // Reflect and resolve method arguments.
-                    $callback = $this->argumentResolver->createCallback(
-                        (new Invokable([$type, $method]))->reflection()
-                    );
-
-                    // Replace method arguments with provided ones (if any).
-                    $arguments = $callback($inflection);
+                    $arguments = $this->argumentResolver->resolve(new ReflectionMethod($type, $method), $inflection);
 
                     // Wrap calling method with closure to avoid reflecting / resolving each time inflection applied.
                     $this->inflections[$type][$method] = $inflection = function () use ($method, $arguments) {

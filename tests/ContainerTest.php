@@ -1,9 +1,6 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-use Venta\Container\Container;
-use Venta\Contracts\Container\ArgumentResolver;
-use Venta\Contracts\Container\ObjectInflector;
 
 /**
  * Class ContainerTest
@@ -449,44 +446,6 @@ class ContainerTest extends TestCase
         $container = new Venta\Container\Container;
         $container->addInflection(E::class, 'setDependency');
         $container->get(E::class);
-    }
-
-    /**
-     * @test
-     */
-    public function savesReflectionResolveResult()
-    {
-        $closure = function (stdClass $dep) {
-            return new TestClass($dep);
-        };
-        $resolver = Mockery::mock(\Venta\Contracts\Container\ArgumentResolver::class);
-        $resolver->shouldReceive('createCallback')
-                 ->with(Mockery::type(ReflectionFunction::class))
-                 ->andReturn(function () {
-                     return [new stdClass()];
-                 })
-                 ->once();
-
-        $inflector = Mockery::mock(ObjectInflector::class);
-        $inflector->shouldReceive('applyInflections');
-
-        /** @var Container $container */
-        $container = new class($resolver, $inflector) extends Container
-        {
-            /**
-             * @inheritDoc
-             */
-            public function __construct(ArgumentResolver $resolver = null, ObjectInflector $inflector)
-            {
-                $this->setArgumentResolver($resolver);
-                $this->setObjectInflector($inflector);
-            }
-
-        };
-        $container->bindFactory(TestClassContract::class, $closure);
-
-        $container->get(TestClassContract::class);
-        $container->get(TestClassContract::class);
     }
 
     /**

@@ -10,8 +10,8 @@ use Venta\Container\Exception\CircularReferenceException;
 use Venta\Container\Exception\NotFoundException;
 use Venta\Container\Exception\UninstantiableServiceException;
 use Venta\Container\Exception\UnresolvableDependencyException;
-use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
+use Venta\Contracts\Container\Invoker as InvokerContract;
 use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 
 /**
@@ -21,10 +21,6 @@ use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
  */
 class Container implements ContainerContract
 {
-    /**
-     * @var ArgumentResolverContract
-     */
-    private $argumentResolver;
 
     /**
      * Array of callable definitions.
@@ -55,6 +51,11 @@ class Container implements ContainerContract
     private $factories = [];
 
     /**
+     * @var ObjectInflectorContract
+     */
+    private $inflector;
+
+    /**
      * Array of resolved instances.
      *
      * @var object[]
@@ -62,16 +63,16 @@ class Container implements ContainerContract
     private $instances = [];
 
     /**
+     * @var InvokerContract
+     */
+    private $invoker;
+
+    /**
      * Array of container service identifiers.
      *
      * @var string[]
      */
     private $keys = [];
-
-    /**
-     * @var ObjectInflectorContract
-     */
-    private $objectInflector;
 
     /**
      * Array of container service identifiers currently being resolved.
@@ -93,8 +94,9 @@ class Container implements ContainerContract
      */
     public function __construct()
     {
-        $this->setArgumentResolver(new ArgumentResolver($this))
-             ->setObjectInflector(new ObjectInflector($this->argumentResolver));
+        $argumentResolver = new ArgumentResolver($this);
+        $this->setInvoker(new Invoker($this, $argumentResolver));
+        $this->setObjectInflector(new ObjectInflector($argumentResolver));
     }
 
     /**
@@ -103,7 +105,7 @@ class Container implements ContainerContract
     public function addInflection(string $id, string $method, array $arguments = [])
     {
         $this->validateId($id);
-        $this->objectInflector->addInflection($this->normalize($id), $method, $arguments);
+        $this->inflector->addInflection($this->normalize($id), $method, $arguments);
     }
 
     /**
@@ -156,27 +158,7 @@ class Container implements ContainerContract
      */
     public function call($callable, array $arguments = [])
     {
-        $reflectedCallable = new Invokable($callable);
-        $reflection = $reflectedCallable->reflection();
-        $arguments = $this->argumentResolver->resolve($reflection, $arguments);
-
-        if ($reflectedCallable->isFunction()) {
-            // We have Closure or "functionName" string.
-            $callable = $reflectedCallable->callable();
-
-            return $callable(...$arguments);
-        }
-
-        list($object, $method) = $reflectedCallable->callable();
-        if ($reflection->isStatic()) {
-            return $object::$method(...$arguments);
-        }
-
-        if (is_string($object)) {
-            $object = $this->get($object);
-        }
-
-        return $object->$method(...$arguments);
+        return $this->invoker->call($callable, $arguments);
     }
 
     /**
@@ -225,7 +207,7 @@ class Container implements ContainerContract
         try {
             // Instantiate service and apply inflections.
             $object = $this->instantiateService($id, $arguments);
-            $this->objectInflector->applyInflections($object);
+            $this->inflector->applyInflections($object);
             $object = $this->decorateObject($id, $object);
 
             // Cache shared instances.
@@ -256,33 +238,25 @@ class Container implements ContainerContract
      */
     public function isCallable($callable): bool
     {
-        try {
-            return $this->isResolvableCallable(new Invokable($callable));
-        } catch (InvalidArgumentException $e) {
-            return false;
-        }
+        return $this->invoker->isCallable($callable);
     }
 
     /**
-     * @param ArgumentResolverContract $argumentResolver
-     * @return Container
+     * @param InvokerContract $invoker
+     * @return void
      */
-    protected function setArgumentResolver(ArgumentResolverContract $argumentResolver): Container
+    protected function setInvoker(InvokerContract $invoker)
     {
-        $this->argumentResolver = $argumentResolver;
-
-        return $this;
+        $this->invoker = $invoker;
     }
 
     /**
-     * @param ObjectInflectorContract $objectInflector
-     * @return Container
+     * @param ObjectInflectorContract $inflector
+     * @return void
      */
-    protected function setObjectInflector(ObjectInflectorContract $objectInflector): Container
+    protected function setObjectInflector(ObjectInflectorContract $inflector)
     {
-        $this->objectInflector = $objectInflector;
-
-        return $this;
+        $this->inflector = $inflector;
     }
 
     /**
@@ -297,32 +271,13 @@ class Container implements ContainerContract
     /**
      * Create callable factory with resolved arguments from callable.
      *
-     * @param Invokable $reflectedCallable
+     * @param Invokable $invokable
      * @return Closure
      */
-    private function createServiceFactoryFromCallable(Invokable $reflectedCallable): Closure
+    private function createServiceFactoryFromCallable(Invokable $invokable): Closure
     {
-        $reflection = $reflectedCallable->reflection();
-        // Wrap reflected function arguments with closure.
-        $resolve = $this->argumentResolver->createCallback($reflection);
-
-        if ($reflectedCallable->isFunction()) {
-            // We have Closure or "functionName" string.
-            $callable = $reflectedCallable->callable();
-
-            return function (array $arguments = []) use ($callable, $resolve) {
-                return $callable(...$resolve($arguments));
-            };
-        }
-        list($object, $method) = $reflectedCallable->callable();
-
-        if (!$reflection->isStatic() && is_string($object)) {
-            $object = $this->get($object);
-        }
-
-        // Wrap with Closure to save reflection resolve results.
-        return function (array $arguments = []) use ($object, $method, $resolve) {
-            return ([$object, $method])(...$resolve($arguments));
+        return function (array $arguments = []) use ($invokable) {
+            return $this->invoker->invoke($invokable, $arguments);
         };
     }
 
@@ -340,14 +295,17 @@ class Container implements ContainerContract
             throw new UninstantiableServiceException($class, $this->resolving);
         }
         $constructor = $reflection->getConstructor();
-        $resolve = ($constructor && $constructor->getNumberOfParameters())
-            ? $this->argumentResolver->createCallback($constructor)
-            : null;
 
-        return function (array $arguments = []) use ($class, $resolve) {
-            $object = $resolve ? new $class(...$resolve($arguments)) : new $class();
+        if ($constructor && $constructor->getNumberOfParameters() > 0) {
+            $invokable = new Invokable($constructor);
 
-            return $object;
+            return function (array $arguments = []) use ($invokable) {
+                return $this->invoker->invoke($invokable, $arguments);
+            };
+        }
+
+        return function () use ($class) {
+            return new $class();
         };
     }
 
@@ -362,8 +320,8 @@ class Container implements ContainerContract
     {
         if (isset($this->decoratorDefinitions[$id])) {
             foreach ($this->decoratorDefinitions[$id] as $callback) {
-                $object = $this->call($callback, [$object]);
-                $this->objectInflector->applyInflections($object);
+                $object = $this->invoker->call($callback, [$object]);
+                $this->inflector->applyInflections($object);
             }
         }
 
@@ -419,7 +377,7 @@ class Container implements ContainerContract
         // If array represents callable we need to be sure it's an object or a resolvable service id.
         $callable = $reflectedCallable->callable();
 
-        return !is_array($callable)
+        return $reflectedCallable->isFunction()
                || is_object($callable[0])
                || $this->isResolvableService($callable[0]);
     }

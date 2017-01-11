@@ -15,17 +15,17 @@ class ObjectInflectorTest extends TestCase
         // Mocking argument resolver dependency.
         $resolver = Mockery::mock(ArgumentResolver::class);
 
-        // Callback to be returned by ArgumentResolver::resolveArguments() method.
+        // Callback to be returned by ArgumentResolver::resolve() method.
         // Expects $arguments array to contain 'value' key to merge.
         // Will return array of arguments for TestClass::setValue() method call.
-        $callback = function (array $arguments) {
+        $callback = function (ReflectionFunctionAbstract $function, array $arguments) {
             return array_values(array_merge(['value' => 'to be replaced'], $arguments));
         };
 
         // Defining expectations.
-        $resolver->shouldReceive('createCallback')
-                 ->with(Mockery::type(ReflectionMethod::class))
-                 ->andReturn($callback)
+        $resolver->shouldReceive('resolve')
+                 ->with(Mockery::type(ReflectionMethod::class), ['value' => 'value'])
+                 ->andReturnUsing($callback)
                  ->once();
 
         // Creating inflector, setting resolver, adding inflection.

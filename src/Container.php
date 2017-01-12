@@ -13,6 +13,7 @@ use Venta\Container\Exception\UnresolvableDependencyException;
 use Venta\Contracts\Container\Container as ContainerContract;
 use Venta\Contracts\Container\Invoker as InvokerContract;
 use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
+use Venta\Contracts\Container\ServiceDecorator as ServiceDecoratorContract;
 
 /**
  * Class Container
@@ -37,11 +38,9 @@ class Container implements ContainerContract
     private $classDefinitions = [];
 
     /**
-     * Array of decorator definitions.
-     *
-     * @var Invokable[][]|string[][]
+     * @var ServiceDecoratorContract
      */
-    private $decoratorDefinitions = [];
+    private $decorator;
 
     /**
      * Array of container service callable factories.
@@ -97,6 +96,7 @@ class Container implements ContainerContract
         $argumentResolver = new ArgumentResolver($this);
         $this->setInvoker(new Invoker($this, $argumentResolver));
         $this->setObjectInflector(new ObjectInflector($argumentResolver));
+        $this->setServiceDecorator(new ServiceDecorator($this, $this->inflector, $this->invoker));
     }
 
     /**
@@ -164,15 +164,7 @@ class Container implements ContainerContract
             throw new InvalidArgumentException('Invalid id provided.');
         }
 
-        if (is_string($decorator)) {
-            if (!class_exists($decorator)) {
-                throw new InvalidArgumentException(sprintf('Invalid decorator class "%s" provided.', $decorator));
-            }
-        } else {
-            $decorator = new Invokable($decorator);
-        }
-
-        $this->decoratorDefinitions[$id][] = $decorator;
+        $this->decorator->addDecorator($id, $decorator);
     }
 
     /**
@@ -188,9 +180,7 @@ class Container implements ContainerContract
 
         // Look up service in resolved instances first.
         if (isset($this->instances[$id])) {
-            $object = $this->decorateObject($id, $this->instances[$id]);
-            // Delete all decorator callbacks to avoid applying them once more on another get call.
-            unset($this->decoratorDefinitions[$id]);
+            $object = $this->decorator->decorate($id, $this->instances[$id], true);
 
             return $object;
         }
@@ -207,13 +197,11 @@ class Container implements ContainerContract
             // Instantiate service and apply inflections.
             $object = $this->instantiateService($id, $arguments);
             $this->inflector->applyInflections($object);
-            $object = $this->decorateObject($id, $object);
+            $object = $this->decorator->decorate($id, $object, isset($this->shared[$id]));
 
             // Cache shared instances.
             if (isset($this->shared[$id])) {
                 $this->instances[$id] = $object;
-                // Remove all decorator callbacks to prevent further decorations on concrete instance.
-                unset($this->decoratorDefinitions[$id]);
             }
 
             return $object;
@@ -267,6 +255,15 @@ class Container implements ContainerContract
     }
 
     /**
+     * @param ServiceDecoratorContract $decorator
+     * @return void
+     */
+    protected function setServiceDecorator(ServiceDecoratorContract $decorator)
+    {
+        $this->decorator = $decorator;
+    }
+
+    /**
      * Forbid container cloning.
      *
      * @codeCoverageIgnore
@@ -314,27 +311,6 @@ class Container implements ContainerContract
         return function () use ($class) {
             return new $class();
         };
-    }
-
-    /**
-     * Applies decoration callbacks to provided instance.
-     *
-     * @param string $id
-     * @param $object
-     * @return object
-     */
-    private function decorateObject(string $id, $object)
-    {
-        if (isset($this->decoratorDefinitions[$id])) {
-            foreach ($this->decoratorDefinitions[$id] as $decorator) {
-                $object = $decorator instanceof Invokable
-                    ? $this->invoker->invoke($decorator, [$object])
-                    : $this->get($decorator, [$object]);
-                $this->inflector->applyInflections($object);
-            }
-        }
-
-        return $object;
     }
 
     /**

@@ -18,7 +18,7 @@ class ContainerTest extends TestCase
     public function canApplyInflectionsOnGet()
     {
         $container = new Venta\Container\Container;
-        $container->inflect(TestClass::class, 'setValue', [42]);
+        $container->addInflection(TestClass::class, 'setValue', [42]);
         $result = $container->get(TestClass::class);
 
         $this->assertSame(42, $result->getValue());
@@ -30,7 +30,7 @@ class ContainerTest extends TestCase
     public function canApplyInflectionsOnManyInstances()
     {
         $container = new Venta\Container\Container;
-        $container->inflect(TestClass::class, 'setValue', [42]);
+        $container->addInflection(TestClass::class, 'setValue', [42]);
         $test1 = $container->get(TestClass::class);
         $test2 = $container->get(TestClass::class);
         $test3 = $container->get(TestClass::class);
@@ -163,7 +163,7 @@ class ContainerTest extends TestCase
     {
         $container = new Venta\Container\Container;
         $container->bindInstance(TestClassContract::class, new TestClass(new stdClass));
-        $container->decorate(TestClassContract::class, function ($previous) {
+        $container->addDecorator(TestClassContract::class, function ($previous) {
             return new class($previous) implements TestClassContract
             {
             };
@@ -184,7 +184,7 @@ class ContainerTest extends TestCase
         $container->bindFactory(TestClassContract::class, function () {
             return new TestClass(new stdClass);
         });
-        $container->decorate(TestClassContract::class, function ($previous) {
+        $container->addDecorator(TestClassContract::class, function ($previous) {
             return new class($previous) implements TestClassContract
             {
             };
@@ -203,7 +203,7 @@ class ContainerTest extends TestCase
     {
         $container = new Venta\Container\Container;
         $container->bindClass(TestClassContract::class, TestClass::class);
-        $container->decorate(TestClassContract::class, function ($previous) {
+        $container->addDecorator(TestClassContract::class, function ($previous) {
             return new class($previous) implements TestClassContract
             {
             };
@@ -222,7 +222,7 @@ class ContainerTest extends TestCase
     {
         $container = new Venta\Container\Container;
         $container->bindClass(TestClassContract::class, TestClass::class);
-        $container->decorate(TestClassContract::class, TestClassDecorator::class);
+        $container->addDecorator(TestClassContract::class, TestClassDecorator::class);
 
         $concrete = $container->get(TestClassContract::class);
 
@@ -459,7 +459,7 @@ class ContainerTest extends TestCase
     public function checksInflectionCircularDependency()
     {
         $container = new Venta\Container\Container;
-        $container->inflect(E::class, 'setDependency');
+        $container->addInflection(E::class, 'setDependency');
         $container->get(E::class);
     }
 
@@ -512,7 +512,7 @@ class ContainerTest extends TestCase
     public function throwsExceptionIfInflectionMethodDoesNotExist()
     {
         $container = new Venta\Container\Container;
-        $container->inflect(TestClass::class, 'unknownMethod');
+        $container->addInflection(TestClass::class, 'unknownMethod');
     }
 
     /**

@@ -102,15 +102,6 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
-    public function addInflection(string $id, string $method, array $arguments = [])
-    {
-        $this->validateId($id);
-        $this->inflector->addInflection($this->normalize($id), $method, $arguments);
-    }
-
-    /**
-     * @inheritDoc
-     */
     public function bindClass(string $id, string $class, $shared = false)
     {
         if (!$this->isResolvableService($class)) {
@@ -231,6 +222,14 @@ class Container implements ContainerContract
     public function has($id): bool
     {
         return $this->isResolvableService($this->normalize($id));
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function inflect(string $id, string $method, array $arguments = [])
+    {
+        $this->inflector->addInflection($id, $method, $arguments);
     }
 
     /**

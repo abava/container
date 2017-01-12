@@ -18,7 +18,7 @@ class ContainerTest extends TestCase
     public function canApplyInflectionsOnGet()
     {
         $container = new Venta\Container\Container;
-        $container->addInflection(TestClass::class, 'setValue', [42]);
+        $container->inflect(TestClass::class, 'setValue', [42]);
         $result = $container->get(TestClass::class);
 
         $this->assertSame(42, $result->getValue());
@@ -30,7 +30,7 @@ class ContainerTest extends TestCase
     public function canApplyInflectionsOnManyInstances()
     {
         $container = new Venta\Container\Container;
-        $container->addInflection(TestClass::class, 'setValue', [42]);
+        $container->inflect(TestClass::class, 'setValue', [42]);
         $test1 = $container->get(TestClass::class);
         $test2 = $container->get(TestClass::class);
         $test3 = $container->get(TestClass::class);
@@ -444,7 +444,7 @@ class ContainerTest extends TestCase
     public function checksInflectionCircularDependency()
     {
         $container = new Venta\Container\Container;
-        $container->addInflection(E::class, 'setDependency');
+        $container->inflect(E::class, 'setDependency');
         $container->get(E::class);
     }
 
@@ -497,7 +497,7 @@ class ContainerTest extends TestCase
     public function throwsExceptionIfInflectionMethodDoesNotExist()
     {
         $container = new Venta\Container\Container;
-        $container->addInflection(TestClass::class, 'unknownMethod');
+        $container->inflect(TestClass::class, 'unknownMethod');
     }
 
     /**

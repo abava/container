@@ -21,8 +21,7 @@ class ArgumentResolverTest extends TestCase
         $function = function (string $scalar = 'reso') {
             return $scalar . 'lved';
         };
-        $closure = $resolver->createCallback(new ReflectionFunction($function));
-        $arguments = $closure();
+        $arguments = $resolver->resolve(new ReflectionFunction($function));
 
         $this->assertSame(['reso'], $arguments);
         $this->assertSame('resolved', $function(...$arguments));
@@ -43,9 +42,7 @@ class ArgumentResolverTest extends TestCase
         };
 
         $resolver = new ArgumentResolver($container);
-        $closure = $resolver->createCallback(new ReflectionFunction($function));
-
-        $arguments = $closure();
+        $arguments = $resolver->resolve(new ReflectionFunction($function));
 
         $this->assertSame([$mock], $arguments);
         $this->assertSame($mock, $function(...$arguments));
@@ -60,8 +57,7 @@ class ArgumentResolverTest extends TestCase
         $function = function (string $scalar) {
             return $scalar . 'd';
         };
-        $closure = $resolver->createCallback(new ReflectionFunction($function));
-        $arguments = $closure(['resolve']);
+        $arguments = $resolver->resolve(new ReflectionFunction($function), ['resolve']);
 
         $this->assertSame(['resolve'], $arguments);
         $this->assertSame('resolved', $function(...$arguments));
@@ -76,8 +72,7 @@ class ArgumentResolverTest extends TestCase
         $function = function () {
             return 'resolved';
         };
-        $closure = $resolver->createCallback(new ReflectionFunction($function));
-        $arguments = $closure();
+        $arguments = $resolver->resolve(new ReflectionFunction($function));
 
         $this->assertSame([], $arguments);
         $this->assertSame('resolved', $function(...$arguments));
@@ -99,9 +94,7 @@ class ArgumentResolverTest extends TestCase
         };
 
         $resolver = new ArgumentResolver($container);
-        $closure = $resolver->createCallback(new ReflectionFunction($function));
-
-        $closure();
+        $resolver->resolve(new ReflectionFunction($function));
     }
 
     /**
@@ -116,8 +109,7 @@ class ArgumentResolverTest extends TestCase
         $function = function (string $scalar) {
             return $scalar . 'd';
         };
-        $closure = $resolver->createCallback(new ReflectionFunction($function));
-        $closure();
+        $resolver->resolve(new ReflectionFunction($function));
     }
 
 }

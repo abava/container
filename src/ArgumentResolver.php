@@ -2,7 +2,6 @@
 
 namespace Venta\Container;
 
-use Closure;
 use ReflectionFunctionAbstract;
 use ReflectionParameter;
 use Venta\Container\Exception\ArgumentResolverException;
@@ -29,16 +28,6 @@ final class ArgumentResolver implements ArgumentResolverContract
     public function __construct(ContainerContract $container)
     {
         $this->container = $container;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function createCallback(ReflectionFunctionAbstract $function): Closure
-    {
-        return function (array $arguments = []) use ($function) {
-            return $this->resolve($function, $arguments);
-        };
     }
 
     /**

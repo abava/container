@@ -218,6 +218,21 @@ class ContainerTest extends TestCase
     /**
      * @test
      */
+    public function canDecorateWithClassName()
+    {
+        $container = new Venta\Container\Container;
+        $container->bindClass(TestClassContract::class, TestClass::class);
+        $container->decorate(TestClassContract::class, TestClassDecorator::class);
+
+        $concrete = $container->get(TestClassContract::class);
+
+        $this->assertInstanceOf(TestClassContract::class, $concrete);
+        $this->assertNotInstanceOf(TestClass::class, $concrete);
+    }
+
+    /**
+     * @test
+     */
     public function canResolveClassWithConstructorParameters()
     {
         $container = new Venta\Container\Container;

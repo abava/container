@@ -117,6 +117,16 @@ abstract class StaticTestFactory
 
 }
 
+class TestClassDecorator implements TestClassContract
+{
+    private $testClass;
+
+    public function __construct(TestClassContract $testClass)
+    {
+        $this->testClass = $testClass;
+    }
+}
+
 class A
 {
     protected $dependency;

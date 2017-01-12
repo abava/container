@@ -39,7 +39,7 @@ class Container implements ContainerContract
     /**
      * Array of decorator definitions.
      *
-     * @var callable[][]
+     * @var Invokable[][]|string[][]
      */
     private $decoratorDefinitions = [];
 
@@ -155,7 +155,7 @@ class Container implements ContainerContract
     /**
      * @inheritDoc
      */
-    public function decorate($id, callable $callback)
+    public function decorate($id, $decorator)
     {
         $id = $this->normalize($id);
 
@@ -164,7 +164,15 @@ class Container implements ContainerContract
             throw new InvalidArgumentException('Invalid id provided.');
         }
 
-        $this->decoratorDefinitions[$id][] = $callback;
+        if (is_string($decorator)) {
+            if (!class_exists($decorator)) {
+                throw new InvalidArgumentException(sprintf('Invalid decorator class "%s" provided.', $decorator));
+            }
+        } else {
+            $decorator = new Invokable($decorator);
+        }
+
+        $this->decoratorDefinitions[$id][] = $decorator;
     }
 
     /**
@@ -318,8 +326,10 @@ class Container implements ContainerContract
     private function decorateObject(string $id, $object)
     {
         if (isset($this->decoratorDefinitions[$id])) {
-            foreach ($this->decoratorDefinitions[$id] as $callback) {
-                $object = $this->invoker->call($callback, [$object]);
+            foreach ($this->decoratorDefinitions[$id] as $decorator) {
+                $object = $decorator instanceof Invokable
+                    ? $this->invoker->invoke($decorator, [$object])
+                    : $this->get($decorator, [$object]);
                 $this->inflector->applyInflections($object);
             }
         }

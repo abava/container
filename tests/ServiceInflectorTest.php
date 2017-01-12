@@ -1,10 +1,10 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-use Venta\Container\ObjectInflector;
+use Venta\Container\ServiceInflector;
 use Venta\Contracts\Container\ArgumentResolver;
 
-class ObjectInflectorTest extends TestCase
+class ServiceInflectorTest extends TestCase
 {
 
     /**
@@ -29,7 +29,7 @@ class ObjectInflectorTest extends TestCase
                  ->once();
 
         // Creating inflector, setting resolver, adding inflection.
-        $inflector = new ObjectInflector($resolver);
+        $inflector = new ServiceInflector($resolver);
         $inflector->addInflection(TestClass::class, 'setValue', ['value' => 'value']);
 
         // Creating test object.
@@ -39,18 +39,18 @@ class ObjectInflectorTest extends TestCase
         $this->assertNull($test->getValue());
 
         // Applying inflections.
-        $inflector->applyInflections($test);
+        $inflector->inflect($test);
 
         // Now value was changed via TestClass::setValue() call.
         $this->assertSame('value', $test->getValue());
 
         // After first run inflection callable must be saved for better performance.
         $test2 = new TestClass(new stdClass());
-        $inflector->applyInflections($test2);
+        $inflector->inflect($test2);
         $this->assertSame($test->getValue(), $test2->getValue());
 
         // Inflection must be called only on TestClass instances.
-        $inflector->applyInflections(
+        $inflector->inflect(
             Mockery::mock(stdClass::class)->shouldNotReceive('setValue')->getMock()
         );
 

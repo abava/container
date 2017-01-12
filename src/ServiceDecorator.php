@@ -5,8 +5,8 @@ namespace Venta\Container;
 use InvalidArgumentException;
 use Venta\Contracts\Container\Container as ContainerContract;
 use Venta\Contracts\Container\Invoker as InvokerContract;
-use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 use Venta\Contracts\Container\ServiceDecorator as ServiceDecoratorContract;
+use Venta\Contracts\Container\ServiceInflector as ServiceInflectorContract;
 
 /**
  * Class ServiceDecorator
@@ -28,7 +28,7 @@ final class ServiceDecorator implements ServiceDecoratorContract
     private $decorators = [];
 
     /**
-     * @var ObjectInflectorContract
+     * @var ServiceInflectorContract
      */
     private $inflector;
 
@@ -41,12 +41,12 @@ final class ServiceDecorator implements ServiceDecoratorContract
      * ServiceDecorator constructor.
      *
      * @param ContainerContract $container
-     * @param ObjectInflectorContract $inflector
+     * @param ServiceInflectorContract $inflector
      * @param InvokerContract $invoker
      */
     public function __construct(
         ContainerContract $container,
-        ObjectInflectorContract $inflector,
+        ServiceInflectorContract $inflector,
         InvokerContract $invoker
     ) {
         $this->container = $container;
@@ -87,7 +87,7 @@ final class ServiceDecorator implements ServiceDecoratorContract
             $object = $decorator instanceof Invokable
                 ? $this->invoker->invoke($decorator, [$object])
                 : $this->container->get($decorator, [$object]);
-            $this->inflector->applyInflections($object);
+            $this->inflector->inflect($object);
         }
 
         if ($once) {

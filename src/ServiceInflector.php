@@ -5,14 +5,14 @@ namespace Venta\Container;
 use InvalidArgumentException;
 use ReflectionMethod;
 use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
-use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
+use Venta\Contracts\Container\ServiceInflector as ServiceInflectorContract;
 
 /**
- * Class ObjectInflector.
+ * Class ServiceInflector
  *
  * @package Venta\Container
  */
-final class ObjectInflector implements ObjectInflectorContract
+final class ServiceInflector implements ServiceInflectorContract
 {
 
     /**
@@ -28,7 +28,7 @@ final class ObjectInflector implements ObjectInflectorContract
     private $inflections = [];
 
     /**
-     * ObjectInflector constructor.
+     * ServiceInflector constructor.
      *
      * @param ArgumentResolverContract $argumentResolver
      */
@@ -52,7 +52,7 @@ final class ObjectInflector implements ObjectInflectorContract
     /**
      * @inheritDoc
      */
-    public function applyInflections($object)
+    public function inflect($object)
     {
         foreach ($this->inflections as $type => $methods) {
             if (!$object instanceof $type) {

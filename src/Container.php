@@ -12,8 +12,8 @@ use Venta\Container\Exception\UninstantiableServiceException;
 use Venta\Container\Exception\UnresolvableDependencyException;
 use Venta\Contracts\Container\Container as ContainerContract;
 use Venta\Contracts\Container\Invoker as InvokerContract;
-use Venta\Contracts\Container\ObjectInflector as ObjectInflectorContract;
 use Venta\Contracts\Container\ServiceDecorator as ServiceDecoratorContract;
+use Venta\Contracts\Container\ServiceInflector as ServiceInflectorContract;
 
 /**
  * Class Container
@@ -50,7 +50,7 @@ class Container implements ContainerContract
     private $factories = [];
 
     /**
-     * @var ObjectInflectorContract
+     * @var ServiceInflectorContract
      */
     private $inflector;
 
@@ -95,7 +95,7 @@ class Container implements ContainerContract
     {
         $argumentResolver = new ArgumentResolver($this);
         $this->setInvoker(new Invoker($this, $argumentResolver));
-        $this->setObjectInflector(new ObjectInflector($argumentResolver));
+        $this->setServiceInflector(new ServiceInflector($argumentResolver));
         $this->setServiceDecorator(new ServiceDecorator($this, $this->inflector, $this->invoker));
     }
 
@@ -122,11 +122,8 @@ class Container implements ContainerContract
             throw new InvalidArgumentException('Invalid callable provided.');
         }
 
-        $this->register(
-            $id,
-            $shared,
-            function ($id) use ($reflectedCallable) {
-                $this->callableDefinitions[$id] = $reflectedCallable;
+        $this->register($id, $shared, function ($id) use ($reflectedCallable) {
+            $this->callableDefinitions[$id] = $reflectedCallable;
         });
     }
 
@@ -196,7 +193,7 @@ class Container implements ContainerContract
         try {
             // Instantiate service and apply inflections.
             $object = $this->instantiateService($id, $arguments);
-            $this->inflector->applyInflections($object);
+            $this->inflector->inflect($object);
             $object = $this->decorator->decorate($id, $object, isset($this->shared[$id]));
 
             // Cache shared instances.
@@ -246,21 +243,21 @@ class Container implements ContainerContract
     }
 
     /**
-     * @param ObjectInflectorContract $inflector
-     * @return void
-     */
-    protected function setObjectInflector(ObjectInflectorContract $inflector)
-    {
-        $this->inflector = $inflector;
-    }
-
-    /**
      * @param ServiceDecoratorContract $decorator
      * @return void
      */
     protected function setServiceDecorator(ServiceDecoratorContract $decorator)
     {
         $this->decorator = $decorator;
+    }
+
+    /**
+     * @param ServiceInflectorContract $inflector
+     * @return void
+     */
+    protected function setServiceInflector(ServiceInflectorContract $inflector)
+    {
+        $this->inflector = $inflector;
     }
 
     /**

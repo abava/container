@@ -9,22 +9,53 @@ use Venta\Container\Exception\CircularReferenceException;
 use Venta\Container\Exception\NotFoundException;
 use Venta\Container\Exception\UninstantiableServiceException;
 use Venta\Container\Exception\UnresolvableDependencyException;
+use Venta\Contracts\Container\ArgumentResolver as ArgumentResolverContract;
 use Venta\Contracts\Container\Container as ContainerContract;
 use Venta\Contracts\Container\Invoker as InvokerContract;
-use Venta\Contracts\Container\ServiceDecorator as ServiceDecoratorContract;
-use Venta\Contracts\Container\ServiceInflector as ServiceInflectorContract;
 
 /**
  * Class Container
  *
  * @package Venta\Container
  */
-class Container extends ServiceRegistry implements ContainerContract
+abstract class AbstractContainer implements ContainerContract
 {
+
     /**
-     * @var ServiceDecoratorContract
+     * Array of callable definitions.
+     *
+     * @var Invokable[]
      */
-    private $decorator;
+    protected $callableDefinitions = [];
+
+    /**
+     * Array of class definitions.
+     *
+     * @var string[]
+     */
+    protected $classDefinitions = [];
+
+    /**
+     * Array of resolved instances.
+     *
+     * @var object[]
+     */
+    protected $instances = [];
+
+    /**
+     * Array of container service identifiers.
+     *
+     * @var string[]
+     */
+    protected $keys = [];
+
+    /**
+     * Array of instances identifiers marked as shared.
+     * Such instances will be instantiated once and returned on consecutive gets.
+     *
+     * @var bool[]
+     */
+    protected $shared = [];
 
     /**
      * Array of container service callable factories.
@@ -32,11 +63,6 @@ class Container extends ServiceRegistry implements ContainerContract
      * @var Closure[]
      */
     private $factories = [];
-
-    /**
-     * @var ServiceInflectorContract
-     */
-    private $inflector;
 
     /**
      * @var InvokerContract
@@ -52,13 +78,12 @@ class Container extends ServiceRegistry implements ContainerContract
 
     /**
      * Container constructor.
+     *
+     * @param ArgumentResolverContract|null $resolver
      */
-    public function __construct()
+    public function __construct(ArgumentResolverContract $resolver = null)
     {
-        $argumentResolver = new ArgumentResolver($this);
-        $this->setInvoker(new Invoker($this, $argumentResolver));
-        $this->setInflector(new ServiceInflector($argumentResolver));
-        $this->setDecorator(new ServiceDecorator($this, $this->inflector(), $this->invoker));
+        $this->setInvoker(new Invoker($this, $resolver ?: new ArgumentResolver($this)));
     }
 
     /**
@@ -81,14 +106,6 @@ class Container extends ServiceRegistry implements ContainerContract
             throw new NotFoundException($id, $this->resolving);
         }
 
-        // Look up service in resolved instances first.
-        $object = $this->instance($id);
-        if (!empty($object)) {
-            $object = $this->decorator()->decorate($id, $object, true);
-
-            return $object;
-        }
-
         // Detect circular references.
         // We mark service as being resolved to detect circular references through out the resolution chain.
         if (isset($this->resolving[$id])) {
@@ -100,12 +117,10 @@ class Container extends ServiceRegistry implements ContainerContract
         try {
             // Instantiate service and apply inflections.
             $object = $this->instantiateService($id, $arguments);
-            $this->inflector()->inflect($object);
-            $object = $this->decorator()->decorate($id, $object, $this->isShared($id));
 
             // Cache shared instances.
             if ($this->isShared($id)) {
-                $this->bindInstance($id, $object);
+                $this->instances[$id] = $object;
             }
 
             return $object;
@@ -133,35 +148,69 @@ class Container extends ServiceRegistry implements ContainerContract
     }
 
     /**
-     * @inheritDoc
+     * Create callable factory for the subject service.
+     *
+     * @param string $id
+     * @param array $arguments
+     * @return mixed
      */
-    protected function decorator(): ServiceDecoratorContract
+    protected function instantiateService(string $id, array $arguments)
     {
-        return $this->decorator;
+        if (isset($this->instances[$id])) {
+            return $this->instances[$id];
+        }
+
+        if (!isset($this->factories[$id])) {
+            if (isset($this->callableDefinitions[$id])) {
+                $this->factories[$id] = $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
+            } elseif (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
+                // Recursive call allows to bind contract to contract.
+                return $this->instantiateService($this->classDefinitions[$id], $arguments);
+            } else {
+                $this->factories[$id] = $this->createServiceFactoryFromClass($id);
+            }
+        }
+
+        return ($this->factories[$id])($arguments);
     }
 
     /**
-     * @inheritDoc
+     * @return InvokerContract
      */
-    protected function inflector(): ServiceInflectorContract
+    protected function invoker(): InvokerContract
     {
-        return $this->inflector;
+        return $this->invoker;
     }
 
     /**
-     * @param ServiceDecoratorContract $decorator
+     * Check if container can resolve the service with subject identifier.
+     *
+     * @param string $id
+     * @return bool
      */
-    protected function setDecorator(ServiceDecoratorContract $decorator)
+    protected function isResolvableService(string $id): bool
     {
-        $this->decorator = $decorator;
+        return isset($this->keys[$id]) || class_exists($id);
     }
 
     /**
-     * @param ServiceInflectorContract $inflector
+     * @param string $id
+     * @return bool
      */
-    protected function setInflector(ServiceInflectorContract $inflector)
+    protected function isShared(string $id): bool
     {
-        $this->inflector = $inflector;
+        return isset($this->shared[$id]);
+    }
+
+    /**
+     * Normalize key to use across container.
+     *
+     * @param  string $id
+     * @return string
+     */
+    protected function normalize(string $id): string
+    {
+        return ltrim($id, '\\');
     }
 
     /**
@@ -221,34 +270,6 @@ class Container extends ServiceRegistry implements ContainerContract
         return function () use ($class) {
             return new $class();
         };
-    }
-
-    /**
-     * Create callable factory for the subject service.
-     *
-     * @param string $id
-     * @param array $arguments
-     * @return mixed
-     */
-    private function instantiateService(string $id, array $arguments)
-    {
-        $instance = $this->instance($id);
-        if (!empty($instance)) {
-            return $instance;
-        }
-
-        if (!isset($this->factories[$id])) {
-            if (!empty($this->callableDefinition($id))) {
-                $this->factories[$id] = $this->createServiceFactoryFromCallable($this->callableDefinition($id));
-            } elseif (!empty($this->classDefinition($id)) && $this->classDefinition($id) !== $id) {
-                // Recursive call allows to bind contract to contract.
-                return $this->instantiateService($this->classDefinition($id), $arguments);
-            } else {
-                $this->factories[$id] = $this->createServiceFactoryFromClass($id);
-            }
-        }
-
-        return ($this->factories[$id])($arguments);
     }
 
 }

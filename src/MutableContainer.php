@@ -4,53 +4,39 @@ namespace Venta\Container;
 
 use Closure;
 use InvalidArgumentException;
+use Venta\Contracts\Container\MutableContainer as MutableContainerContract;
 use Venta\Contracts\Container\ServiceDecorator as ServiceDecoratorContract;
 use Venta\Contracts\Container\ServiceInflector as ServiceInflectorContract;
-use Venta\Contracts\Container\ServiceRegistry as ServiceRegistryContract;
 
 /**
- * Class ServiceRegistry
+ * Class MutableContainer
  *
  * @package Venta\Container
  */
-abstract class ServiceRegistry implements ServiceRegistryContract
+class MutableContainer extends AbstractContainer implements MutableContainerContract
 {
 
     /**
-     * Array of callable definitions.
-     *
-     * @var Invokable[]
+     * @var ServiceDecoratorContract
      */
-    private $callableDefinitions = [];
+    private $decorator;
 
     /**
-     * Array of class definitions.
-     *
-     * @var string[]
+     * @var ServiceInflectorContract
      */
-    private $classDefinitions = [];
+    private $inflector;
 
     /**
-     * Array of resolved instances.
-     *
-     * @var object[]
+     * @inheritDoc
      */
-    private $instances = [];
+    public function __construct()
+    {
+        $resolver = new ArgumentResolver($this);
+        parent::__construct($resolver);
+        $this->setInflector(new ServiceInflector($resolver));
+        $this->setDecorator(new ServiceDecorator($this, $this->inflector, $this->invoker()));
+    }
 
-    /**
-     * Array of container service identifiers.
-     *
-     * @var string[]
-     */
-    private $keys = [];
-
-    /**
-     * Array of instances identifiers marked as shared.
-     * Such instances will be instantiated once and returned on consecutive gets.
-     *
-     * @var bool[]
-     */
-    private $shared = [];
 
     /**
      * @inheritDoc
@@ -64,7 +50,7 @@ abstract class ServiceRegistry implements ServiceRegistryContract
             throw new InvalidArgumentException('Invalid id provided.');
         }
 
-        $this->decorator()->addDecorator($id, $decorator);
+        $this->decorator->addDecorator($id, $decorator);
     }
 
     /**
@@ -72,7 +58,7 @@ abstract class ServiceRegistry implements ServiceRegistryContract
      */
     public function addInflection(string $id, string $method, array $arguments = [])
     {
-        $this->inflector()->addInflection($id, $method, $arguments);
+        $this->inflector->addInflection($id, $method, $arguments);
     }
 
     /**
@@ -117,87 +103,30 @@ abstract class ServiceRegistry implements ServiceRegistryContract
     }
 
     /**
-     * @param string $id
-     * @return null|Invokable
+     * @inheritDoc
      */
-    protected function callableDefinition(string $id)
+    protected function instantiateService(string $id, array $arguments)
     {
-        return $this->callableDefinitions[$id] ?? null;
+        $object = parent::instantiateService($id, $arguments);
+        $this->inflector->inflect($object);
+
+        return $this->decorator->decorate($id, $object, $this->isShared($id));
     }
 
     /**
-     * @param string $id
-     * @return null|string
+     * @param ServiceDecoratorContract $decorator
      */
-    protected function classDefinition(string $id)
+    protected function setDecorator(ServiceDecoratorContract $decorator)
     {
-        return $this->classDefinitions[$id] ?? null;
+        $this->decorator = $decorator;
     }
 
     /**
-     * @return ServiceDecoratorContract
+     * @param ServiceInflectorContract $inflector
      */
-    abstract protected function decorator(): ServiceDecoratorContract;
-
-    /**
-     * @return ServiceInflectorContract
-     */
-    abstract protected function inflector(): ServiceInflectorContract;
-
-    /**
-     * @param $id
-     * @return null|object
-     */
-    protected function instance(string $id)
+    protected function setInflector(ServiceInflectorContract $inflector)
     {
-        return $this->instances[$id] ?? null;
-    }
-
-    /**
-     * Verifies that provided callable can be called by service container.
-     *
-     * @param Invokable $reflectedCallable
-     * @return bool
-     */
-    protected function isResolvableCallable(Invokable $reflectedCallable): bool
-    {
-        // If array represents callable we need to be sure it's an object or a resolvable service id.
-        $callable = $reflectedCallable->callable();
-
-        return $reflectedCallable->isFunction()
-               || is_object($callable[0])
-               || $this->isResolvableService($callable[0]);
-    }
-
-    /**
-     * Check if container can resolve the service with subject identifier.
-     *
-     * @param string $id
-     * @return bool
-     */
-    protected function isResolvableService(string $id): bool
-    {
-        return isset($this->keys[$id]) || class_exists($id);
-    }
-
-    /**
-     * @param string $id
-     * @return bool
-     */
-    protected function isShared(string $id): bool
-    {
-        return isset($this->shared[$id]);
-    }
-
-    /**
-     * Normalize key to use across container.
-     *
-     * @param  string $id
-     * @return string
-     */
-    protected function normalize(string $id): string
-    {
-        return ltrim($id, '\\');
+        $this->inflector = $inflector;
     }
 
     /**
@@ -209,6 +138,22 @@ abstract class ServiceRegistry implements ServiceRegistryContract
     private function isConcrete($service): bool
     {
         return is_object($service) && !$service instanceof Closure;
+    }
+
+    /**
+     * Verifies that provided callable can be called by service container.
+     *
+     * @param Invokable $reflectedCallable
+     * @return bool
+     */
+    private function isResolvableCallable(Invokable $reflectedCallable): bool
+    {
+        // If array represents callable we need to be sure it's an object or a resolvable service id.
+        $callable = $reflectedCallable->callable();
+
+        return $reflectedCallable->isFunction()
+               || is_object($callable[0])
+               || $this->isResolvableService($callable[0]);
     }
 
     /**
@@ -254,5 +199,6 @@ abstract class ServiceRegistry implements ServiceRegistryContract
             );
         }
     }
+
 
 }

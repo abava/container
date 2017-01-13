@@ -3,9 +3,9 @@
 use PHPUnit\Framework\TestCase;
 
 /**
- * Class ContainerTest
+ * Class MutableContainerTest
  */
-class ContainerTest extends TestCase
+class MutableContainerTest extends TestCase
 {
     public function tearDown()
     {
@@ -17,7 +17,7 @@ class ContainerTest extends TestCase
      */
     public function canApplyInflectionsOnGet()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->addInflection(TestClass::class, 'setValue', [42]);
         $result = $container->get(TestClass::class);
 
@@ -29,7 +29,7 @@ class ContainerTest extends TestCase
      */
     public function canApplyInflectionsOnManyInstances()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->addInflection(TestClass::class, 'setValue', [42]);
         $test1 = $container->get(TestClass::class);
         $test2 = $container->get(TestClass::class);
@@ -45,7 +45,7 @@ class ContainerTest extends TestCase
      */
     public function canCallCallableFunctionName()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $this->assertInstanceOf(TestClassContract::class, $container->call('createTestClass'));
     }
 
@@ -54,7 +54,7 @@ class ContainerTest extends TestCase
      */
     public function canCallClassNameMethod()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $result = $container->call('TestClassFactory::createAndSetValue');
 
         $this->assertInstanceOf(TestClassContract::class, $result);
@@ -66,7 +66,7 @@ class ContainerTest extends TestCase
      */
     public function canCallClassNameMethodFromArray()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $result = $container->call(['TestClassFactory', 'createAndSetValue']);
 
         $this->assertInstanceOf(TestClassContract::class, $result);
@@ -78,7 +78,7 @@ class ContainerTest extends TestCase
      */
     public function canCallClassNameMethodStatically()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
 
         $this->assertInstanceOf(TestClassContract::class, $container->call('StaticTestFactory::create'));
     }
@@ -88,7 +88,7 @@ class ContainerTest extends TestCase
      */
     public function canCallClosure()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $object = new stdClass();
         $object->key = 'value';
         $container->bindInstance(stdClass::class, $object);
@@ -104,7 +104,7 @@ class ContainerTest extends TestCase
      */
     public function canCallInterfaceMethod()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindInstance(TestClassFactoryContract::class, new TestClassFactory(new stdClass()));
 
         $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactoryContract::create'));
@@ -115,7 +115,7 @@ class ContainerTest extends TestCase
      */
     public function canCallInvokableClassName()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactory'));
     }
 
@@ -124,7 +124,7 @@ class ContainerTest extends TestCase
      */
     public function canCallInvokableObject()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $invokable = new TestClassFactory(new stdClass());
         $result = $container->call($invokable);
 
@@ -136,7 +136,7 @@ class ContainerTest extends TestCase
      */
     public function canCallObjectMethodFromArrayCallable()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $result = $container->call([new TestClassFactory(new stdClass()), 'createAndSetValue']);
 
         $this->assertInstanceOf(TestClassContract::class, $result);
@@ -148,7 +148,7 @@ class ContainerTest extends TestCase
      */
     public function canCheckEntryIsResolvable()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass(TestClassContract::class, TestClass::class);
 
         $this->assertTrue($container->has(TestClassContract::class));
@@ -161,7 +161,7 @@ class ContainerTest extends TestCase
      */
     public function canDecorateConcreteInstance()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindInstance(TestClassContract::class, new TestClass(new stdClass));
         $container->addDecorator(TestClassContract::class, function ($previous) {
             return new class($previous) implements TestClassContract
@@ -180,7 +180,7 @@ class ContainerTest extends TestCase
      */
     public function canDecorateFactoryDefinedBinding()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, function () {
             return new TestClass(new stdClass);
         });
@@ -201,7 +201,7 @@ class ContainerTest extends TestCase
      */
     public function canDecoratePreviousImplementation()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass(TestClassContract::class, TestClass::class);
         $container->addDecorator(TestClassContract::class, function ($previous) {
             return new class($previous) implements TestClassContract
@@ -220,7 +220,7 @@ class ContainerTest extends TestCase
      */
     public function canDecorateWithClassName()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass(TestClassContract::class, TestClass::class);
         $container->addDecorator(TestClassContract::class, TestClassDecorator::class);
 
@@ -235,7 +235,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveClassWithConstructorParameters()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
 
         $this->assertInstanceOf(
             'SimpleConstructorParametersClass',
@@ -249,7 +249,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveContractToContractBinding()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass(TestClassContract::class, TestClass::class);
         $container->bindClass(Contract::class, TestClassContract::class);
 
@@ -261,7 +261,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromAbstractClassNameStaticMethod()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, 'StaticTestFactory::create');
 
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
@@ -272,7 +272,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromClassName()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
 
         $this->assertInstanceOf(stdClass::class, $container->get('\stdClass'));
         $this->assertInstanceOf(stdClass::class, $container->get('stdClass'));
@@ -283,7 +283,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromClassNameMethod()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, 'TestClassFactory::create');
 
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
@@ -294,7 +294,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromClassNameMethodArray()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, [TestClassFactory::class, 'create']);
 
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
@@ -305,7 +305,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromClassNameStaticMethod()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, 'TestClassFactory::staticCreate');
 
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
@@ -316,7 +316,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromClosure()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(stdClass::class, function () {
             return new stdClass;
         });
@@ -329,7 +329,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromClosureWithArguments()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, function (TestClass $class) {
             return $class;
         });
@@ -342,7 +342,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromFunctionName()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, 'createTestClass');
 
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
@@ -353,7 +353,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveFromInvokableClassName()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass(TestClassFactory::class, TestClassFactory::class);
 
         $this->assertInstanceOf(TestClassFactory::class, $container->get(TestClassFactory::class));
@@ -371,7 +371,7 @@ class ContainerTest extends TestCase
                           ->once()
                           ->getMock();
 
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, $factory);
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
@@ -388,7 +388,7 @@ class ContainerTest extends TestCase
                           ->once()
                           ->getMock();
 
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, [$factory, 'create']);
         $this->assertInstanceOf(TestClassContract::class, $container->get(TestClassContract::class));
     }
@@ -398,7 +398,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveInstanceAsShared()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindInstance(\Venta\Contracts\Container\Container::class, $this);
 
         $this->assertSame($this, $container->get(\Venta\Contracts\Container\Container::class));
@@ -413,7 +413,7 @@ class ContainerTest extends TestCase
      */
     public function canResolveSharedFromClosure()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(stdClass::class, function () {
             return new stdClass;
         }, true);
@@ -427,7 +427,7 @@ class ContainerTest extends TestCase
      */
     public function checksDirectCircularDependency()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->get(D::class);
     }
 
@@ -436,7 +436,7 @@ class ContainerTest extends TestCase
      */
     public function checksIfServiceMethodIsCallable()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
 
         $this->assertTrue($container->isCallable('TestClassFactory::create'));
         $this->assertFalse($container->isCallable('TestClassFactoryContract::create'));
@@ -448,7 +448,7 @@ class ContainerTest extends TestCase
      */
     public function checksIndirectCircularDependency()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->get(A::class);
     }
 
@@ -458,7 +458,7 @@ class ContainerTest extends TestCase
      */
     public function checksInflectionCircularDependency()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->addInflection(E::class, 'setDependency');
         $container->get(E::class);
     }
@@ -469,7 +469,7 @@ class ContainerTest extends TestCase
      */
     public function throwsContainerExceptionIfCantResolve()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindFactory(TestClassContract::class, function ($someUnresolvableDependency) {
         });
         $container->get(TestClassContract::class);
@@ -481,7 +481,7 @@ class ContainerTest extends TestCase
      */
     public function throwsExceptionIfCallingNotCallable()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->call(42);
     }
 
@@ -491,7 +491,7 @@ class ContainerTest extends TestCase
      */
     public function throwsExceptionIfEntryClassNameIsInvalid()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass(TestClassContract::class, 'Some unknown class');
     }
 
@@ -501,7 +501,7 @@ class ContainerTest extends TestCase
      */
     public function throwsExceptionIfIdIsInvalid()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass('Some unknown interface', TestClass::class);
     }
 
@@ -511,7 +511,7 @@ class ContainerTest extends TestCase
      */
     public function throwsExceptionIfInflectionMethodDoesNotExist()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->addInflection(TestClass::class, 'unknownMethod');
     }
 
@@ -521,7 +521,7 @@ class ContainerTest extends TestCase
      */
     public function throwsExceptionOnInvalidCallableCall()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->call('SomeInvalidCallableToCall');
     }
 
@@ -531,7 +531,7 @@ class ContainerTest extends TestCase
      */
     public function throwsExceptionWhenBoundToUninstantiableClass()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->bindClass(TestClassFactoryContract::class, StaticTestFactory::class);
 
         $container->get(TestClassFactoryContract::class);
@@ -543,7 +543,7 @@ class ContainerTest extends TestCase
      */
     public function throwsExceptionWhenCallsUnresolvableServiceMethod()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->call('TestClassFactoryContract::create');
     }
 
@@ -553,7 +553,7 @@ class ContainerTest extends TestCase
      */
     public function throwsNotFoundExceptionIfNotResolvable()
     {
-        $container = new Venta\Container\Container;
+        $container = new Venta\Container\MutableContainer;
         $container->get(TestClassContract::class);
     }
 }

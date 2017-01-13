@@ -3,6 +3,7 @@
 namespace Venta\Container;
 
 use Venta\Contracts\Container\Container as ContainerContract;
+use Venta\Contracts\Container\MutableContainer as MutableContainerContract;
 
 /**
  * Class ContainerProxy
@@ -12,16 +13,16 @@ use Venta\Contracts\Container\Container as ContainerContract;
 final class ContainerProxy implements ContainerContract
 {
     /**
-     * @var ContainerContract
+     * @var MutableContainerContract
      */
     private $container;
 
     /**
      * ContainerProxy constructor.
      *
-     * @param ContainerContract $container
+     * @param MutableContainerContract $container
      */
-    public function __construct(ContainerContract $container)
+    public function __construct(MutableContainerContract $container)
     {
         $this->container = $container;
     }

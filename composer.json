@@ -30,6 +30,9 @@
         }
     },
     "autoload-dev": {
+        "files": [
+            "src/Container/stub/functions.php"
+        ],
         "psr-4": {
             "stub\\Venta\\Container\\": "stub/"
         }

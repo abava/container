@@ -6,5 +6,10 @@ namespace stub\Venta\Container
     {
         return true;
     }
+
+    function stub_foo_function(StubFoo $foo)
+    {
+        return $foo;
+    }
 }
 

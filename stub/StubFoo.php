@@ -2,7 +2,7 @@
 
 namespace stub\Venta\Container;
 
-class StubFoo
+class StubFoo implements StubContract
 {
     /**
      * @var StubBar

@@ -33,6 +33,11 @@ class StubService
         $this->baz = $baz;
     }
 
+    public static function name()
+    {
+        return __CLASS__;
+    }
+
     /**
      * @return StubBar
      */

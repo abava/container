@@ -100,21 +100,9 @@ abstract class AbstractContainer implements ContainerContract
      */
     public function get($id, array $arguments = [])
     {
-        $id = $this->normalize($id);
-        // We try to resolve alias first to get a real service id.
-        if (!$this->isResolvableService($id)) {
-            throw new NotFoundException($id, $this->resolving);
-        }
-
-        // Detect circular references.
-        // We mark service as being resolved to detect circular references through out the resolution chain.
-        if (isset($this->resolving[$id])) {
-            throw new CircularReferenceException($id, $this->resolving);
-        } else {
-            $this->resolving[$id] = $id;
-        }
-
         try {
+            $id = $this->normalize($id);
+
             // Instantiate service and apply inflections.
             $object = $this->instantiateService($id, $arguments);
 
@@ -127,7 +115,7 @@ abstract class AbstractContainer implements ContainerContract
         } catch (ArgumentResolverException $resolveException) {
             throw new UnresolvableDependencyException($id, $this->resolving, $resolveException);
         } finally {
-            unset($this->resolving[$id]);
+            $this->resolved($id);
         }
     }
 
@@ -153,6 +141,7 @@ abstract class AbstractContainer implements ContainerContract
      * @param string $id
      * @param array $arguments
      * @return mixed
+     * @throws NotFoundException
      */
     protected function instantiateService(string $id, array $arguments)
     {
@@ -160,14 +149,20 @@ abstract class AbstractContainer implements ContainerContract
             return $this->instances[$id];
         }
 
+        // Update resolving chain.
+        $this->resolving($id);
+
         if (!isset($this->factories[$id])) {
             if (isset($this->callableDefinitions[$id])) {
                 $this->factories[$id] = $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
-            } elseif (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
-                // Recursive call allows to bind contract to contract.
-                return $this->instantiateService($this->classDefinitions[$id], $arguments);
-            } else {
+            } elseif (isset($this->classDefinitions[$id]) || class_exists($id)) {
+                if (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
+                    // Recursive call allows to bind contract to contract.
+                    return $this->instantiateService($this->classDefinitions[$id], $arguments);
+                }
                 $this->factories[$id] = $this->createServiceFactoryFromClass($id);
+            } else {
+                throw new NotFoundException($id, $this->resolving);
             }
         }
 
@@ -211,6 +206,32 @@ abstract class AbstractContainer implements ContainerContract
     protected function normalize(string $id): string
     {
         return ltrim($id, '\\');
+    }
+
+    /**
+     * @param string $id
+     * @return void
+     */
+    protected function resolved(string $id)
+    {
+        unset($this->resolving[$id]);
+    }
+
+    /**
+     * Detects circular references.
+     *
+     * @param string $id
+     * @return void
+     * @throws CircularReferenceException
+     */
+    protected function resolving(string $id)
+    {
+        if (isset($this->resolving[$id])) {
+            throw new CircularReferenceException($id, $this->resolving);
+        }
+
+        // We mark service as being resolved to detect circular references through out the resolution chain.
+        $this->resolving[$id] = $id;
     }
 
     /**
@@ -271,5 +292,4 @@ abstract class AbstractContainer implements ContainerContract
             return new $class();
         };
     }
-
 }

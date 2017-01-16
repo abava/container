@@ -64,20 +64,21 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
     /**
      * @inheritDoc
      */
-    public function bindClass(string $id, string $class, $shared = true)
+    public function bind(string $id, $service)
     {
-        if (!$this->isResolvableService($class)) {
-            throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));
+        if (is_string($service)) {
+            $this->bindClass($id, $service);
+        } elseif (is_object($service)) {
+            $this->bindInstance($id, $service);
+        } else {
+            throw new InvalidArgumentException('Invalid service provided. Class name or instance expected.');
         }
-        $this->register($id, $shared, function ($id) use ($class) {
-            $this->classDefinitions[$id] = $class;
-        });
     }
 
     /**
      * @inheritDoc
      */
-    public function bindFactory(string $id, $callable, $shared = false)
+    public function factory(string $id, $callable, $shared = false)
     {
         $reflectedCallable = new Invokable($callable);
         if (!$this->isResolvableCallable($reflectedCallable)) {
@@ -86,19 +87,6 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
 
         $this->register($id, $shared, function ($id) use ($reflectedCallable) {
             $this->callableDefinitions[$id] = $reflectedCallable;
-        });
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function bindInstance(string $id, $instance)
-    {
-        if (!$this->isConcrete($instance)) {
-            throw new InvalidArgumentException('Invalid instance provided.');
-        }
-        $this->register($id, true, function ($id) use ($instance) {
-            $this->instances[$id] = $instance;
         });
     }
 
@@ -127,6 +115,38 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
     protected function setInflector(ServiceInflectorContract $inflector)
     {
         $this->inflector = $inflector;
+    }
+
+    /**
+     * @param string $id
+     * @param string $class
+     * @return void
+     * @throws InvalidArgumentException
+     */
+    private function bindClass(string $id, string $class)
+    {
+        if (!$this->isResolvableService($class)) {
+            throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));
+        }
+        $this->register($id, true, function ($id) use ($class) {
+                $this->classDefinitions[$id] = $class;
+        });
+    }
+
+    /**
+     * @param string $id
+     * @param object $instance
+     * @return void
+     * @throws InvalidArgumentException
+     */
+    private function bindInstance(string $id, $instance)
+    {
+        if (!$this->isConcrete($instance)) {
+            throw new InvalidArgumentException('Invalid instance provided.');
+        }
+        $this->register($id, true, function ($id) use ($instance) {
+            $this->instances[$id] = $instance;
+        });
     }
 
     /**
@@ -199,6 +219,5 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
             );
         }
     }
-
 
 }

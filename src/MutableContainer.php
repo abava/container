@@ -64,7 +64,7 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
     /**
      * @inheritDoc
      */
-    public function bindClass(string $id, string $class, $shared = false)
+    public function bindClass(string $id, string $class, $shared = true)
     {
         if (!$this->isResolvableService($class)) {
             throw new InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));

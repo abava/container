@@ -254,6 +254,9 @@ class MutableContainerTest extends TestCase
         $container->bindClass(Contract::class, TestClassContract::class);
 
         $this->assertInstanceOf(TestClass::class, $container->get(Contract::class));
+        $this->assertSame($container->get(Contract::class), $container->get(Contract::class));
+        $this->assertSame($container->get(TestClassContract::class), $container->get(TestClassContract::class));
+        $this->assertSame($container->get(Contract::class), $container->get(TestClassContract::class));
     }
 
     /**

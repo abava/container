@@ -102,14 +102,8 @@ abstract class AbstractContainer implements ContainerContract
     {
         try {
             $id = $this->normalize($id);
-
-            // Instantiate service and apply inflections.
+            $this->resolving($id);
             $object = $this->instantiateService($id, $arguments);
-
-            // Cache shared instances.
-            if ($this->isShared($id)) {
-                $this->instances[$id] = $object;
-            }
 
             return $object;
         } catch (ArgumentResolverException $resolveException) {
@@ -149,24 +143,27 @@ abstract class AbstractContainer implements ContainerContract
             return $this->instances[$id];
         }
 
-        // Update resolving chain.
-        $this->resolving($id);
-
-        if (!isset($this->factories[$id])) {
-            if (isset($this->callableDefinitions[$id])) {
-                $this->factories[$id] = $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
-            } elseif (isset($this->classDefinitions[$id]) || class_exists($id)) {
-                if (isset($this->classDefinitions[$id]) && $this->classDefinitions[$id] !== $id) {
-                    // Recursive call allows to bind contract to contract.
-                    return $this->instantiateService($this->classDefinitions[$id], $arguments);
-                }
-                $this->factories[$id] = $this->createServiceFactoryFromClass($id);
-            } else {
-                throw new NotFoundException($id, $this->resolving);
-            }
+        if (isset($this->factories[$id])) {
+            return ($this->factories[$id])($arguments);
         }
 
-        return ($this->factories[$id])($arguments);
+        if (isset($this->callableDefinitions[$id])) {
+            $this->factories[$id] = $this->createServiceFactoryFromCallable($this->callableDefinitions[$id]);
+
+            return $this->invokeFactory($id, $arguments);
+        }
+
+        $class = $this->classDefinitions[$id] ?? $id;
+        if ($class !== $id) {
+            // Recursive call allows to bind contract to contract.
+            return $this->saveShared($id, $this->instantiateService($class, $arguments));
+        }
+        if (!class_exists($class)) {
+            throw new NotFoundException($id, $this->resolving);
+        }
+        $this->factories[$id] = $this->createServiceFactoryFromClass($class);
+
+        return $this->invokeFactory($id, $arguments);
     }
 
     /**
@@ -292,4 +289,29 @@ abstract class AbstractContainer implements ContainerContract
             return new $class();
         };
     }
+
+    /**
+     * @param string $id
+     * @param array $arguments
+     * @return object
+     */
+    private function invokeFactory(string $id, array $arguments)
+    {
+        return $this->saveShared($id, ($this->factories[$id])($arguments));
+    }
+
+    /**
+     * @param string $id
+     * @param object $object
+     * @return object
+     */
+    private function saveShared(string $id, $object)
+    {
+        if ($this->isShared($id)) {
+            $this->instances[$id] = $object;
+        }
+
+        return $object;
+    }
+
 }

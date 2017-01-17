@@ -88,15 +88,6 @@ abstract class AbstractContainer implements ContainerContract
 
     /**
      * @inheritDoc
-     * @param callable|string $callable Callable to call OR class name to instantiate and invoke.
-     */
-    public function call($callable, array $arguments = [])
-    {
-        return $this->invoker->call($callable, $arguments);
-    }
-
-    /**
-     * @inheritDoc
      */
     public function get($id, array $arguments = [])
     {
@@ -119,14 +110,6 @@ abstract class AbstractContainer implements ContainerContract
     public function has($id): bool
     {
         return $this->isResolvableService($this->normalize($id));
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function isCallable($callable): bool
-    {
-        return $this->invoker->isCallable($callable);
     }
 
     /**

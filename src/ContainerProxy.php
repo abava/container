@@ -30,14 +30,6 @@ final class ContainerProxy implements ContainerContract
     /**
      * @inheritDoc
      */
-    public function call($callable, array $arguments = [])
-    {
-        return $this->container->call($callable, $arguments);
-    }
-
-    /**
-     * @inheritDoc
-     */
     public function get($id, array $arguments = [])
     {
         return $this->container->get($id, $arguments);
@@ -49,14 +41,6 @@ final class ContainerProxy implements ContainerContract
     public function has($id)
     {
         return $this->container->has($id);
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function isCallable($callable): bool
-    {
-        return $this->container->isCallable($callable);
     }
 
 }

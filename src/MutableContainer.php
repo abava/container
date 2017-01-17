@@ -4,6 +4,7 @@ namespace Venta\Container;
 
 use Closure;
 use InvalidArgumentException;
+use Venta\Contracts\Container\Invoker as InvokerContract;
 use Venta\Contracts\Container\MutableContainer as MutableContainerContract;
 use Venta\Contracts\Container\ServiceDecorator as ServiceDecoratorContract;
 use Venta\Contracts\Container\ServiceInflector as ServiceInflectorContract;
@@ -35,6 +36,8 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
         parent::__construct($resolver);
         $this->setInflector(new ServiceInflector($resolver));
         $this->setDecorator(new ServiceDecorator($this, $this->inflector, $this->invoker()));
+
+        $this->bindInstance(InvokerContract::class, $this->invoker());
     }
 
 

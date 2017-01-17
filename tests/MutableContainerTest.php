@@ -43,109 +43,6 @@ class MutableContainerTest extends TestCase
     /**
      * @test
      */
-    public function canCallCallableFunctionName()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $this->assertInstanceOf(TestClassContract::class, $container->call('createTestClass'));
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClassNameMethod()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $result = $container->call('TestClassFactory::createAndSetValue');
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-        $this->assertInstanceOf(stdClass::class, $result->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClassNameMethodFromArray()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $result = $container->call(['TestClassFactory', 'createAndSetValue']);
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-        $this->assertInstanceOf(stdClass::class, $result->getValue());
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClassNameMethodStatically()
-    {
-        $container = new Venta\Container\MutableContainer;
-
-        $this->assertInstanceOf(TestClassContract::class, $container->call('StaticTestFactory::create'));
-    }
-
-    /**
-     * @test
-     */
-    public function canCallClosure()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $object = new stdClass();
-        $object->key = 'value';
-        $container->bind(stdClass::class, $object);
-        $result = $container->call(function (stdClass $dependency) {
-            return $dependency->key;
-        });
-
-        $this->assertSame('value', $result);
-    }
-
-    /**
-     * @test
-     */
-    public function canCallInterfaceMethod()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $container->bind(TestClassFactoryContract::class, new TestClassFactory(new stdClass()));
-
-        $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactoryContract::create'));
-    }
-
-    /**
-     * @test
-     */
-    public function canCallInvokableClassName()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $this->assertInstanceOf(TestClassContract::class, $container->call('TestClassFactory'));
-    }
-
-    /**
-     * @test
-     */
-    public function canCallInvokableObject()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $invokable = new TestClassFactory(new stdClass());
-        $result = $container->call($invokable);
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-    }
-
-    /**
-     * @test
-     */
-    public function canCallObjectMethodFromArrayCallable()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $result = $container->call([new TestClassFactory(new stdClass()), 'createAndSetValue']);
-
-        $this->assertInstanceOf(TestClassContract::class, $result);
-        $this->assertInstanceOf(stdClass::class, $result->getValue());
-    }
-
-    /**
-     * @test
-     */
     public function canCheckEntryIsResolvable()
     {
         $container = new Venta\Container\MutableContainer;
@@ -436,17 +333,6 @@ class MutableContainerTest extends TestCase
 
     /**
      * @test
-     */
-    public function checksIfServiceMethodIsCallable()
-    {
-        $container = new Venta\Container\MutableContainer;
-
-        $this->assertTrue($container->isCallable('TestClassFactory::create'));
-        $this->assertFalse($container->isCallable('TestClassFactoryContract::create'));
-    }
-
-    /**
-     * @test
      * @expectedException \Venta\Container\Exception\CircularReferenceException
      */
     public function checksIndirectCircularDependency()
@@ -482,16 +368,6 @@ class MutableContainerTest extends TestCase
      * @test
      * @expectedException InvalidArgumentException
      */
-    public function throwsExceptionIfCallingNotCallable()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $container->call(42);
-    }
-
-    /**
-     * @test
-     * @expectedException InvalidArgumentException
-     */
     public function throwsExceptionIfEntryClassNameIsInvalid()
     {
         $container = new Venta\Container\MutableContainer;
@@ -520,16 +396,6 @@ class MutableContainerTest extends TestCase
 
     /**
      * @test
-     * @expectedException InvalidArgumentException
-     */
-    public function throwsExceptionOnInvalidCallableCall()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $container->call('SomeInvalidCallableToCall');
-    }
-
-    /**
-     * @test
      * @expectedException Venta\Container\Exception\UninstantiableServiceException
      */
     public function throwsExceptionWhenBoundToUninstantiableClass()
@@ -538,16 +404,6 @@ class MutableContainerTest extends TestCase
         $container->bind(TestClassFactoryContract::class, StaticTestFactory::class);
 
         $container->get(TestClassFactoryContract::class);
-    }
-
-    /**
-     * @test
-     * @expectedException Venta\Container\Exception\NotFoundException
-     */
-    public function throwsExceptionWhenCallsUnresolvableServiceMethod()
-    {
-        $container = new Venta\Container\MutableContainer;
-        $container->call('TestClassFactoryContract::create');
     }
 
     /**

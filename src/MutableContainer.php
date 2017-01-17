@@ -40,30 +40,6 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
         $this->bindInstance(InvokerContract::class, $this->invoker());
     }
 
-
-    /**
-     * @inheritDoc
-     */
-    public function addDecorator(string $id, $decorator)
-    {
-        $id = $this->normalize($id);
-
-        // Check if correct id is provided.
-        if (!$this->isResolvableService($id)) {
-            throw new InvalidArgumentException('Invalid id provided.');
-        }
-
-        $this->decorator->addDecorator($id, $decorator);
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function addInflection(string $id, string $method, array $arguments = [])
-    {
-        $this->inflector->addInflection($id, $method, $arguments);
-    }
-
     /**
      * @inheritDoc
      */
@@ -76,6 +52,21 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
         } else {
             throw new InvalidArgumentException('Invalid service provided. Class name or instance expected.');
         }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function decorate(string $id, $decorator)
+    {
+        $id = $this->normalize($id);
+
+        // Check if correct id is provided.
+        if (!$this->isResolvableService($id)) {
+            throw new InvalidArgumentException('Invalid id provided.');
+        }
+
+        $this->decorator->add($id, $decorator);
     }
 
     /**
@@ -96,12 +87,20 @@ class MutableContainer extends AbstractContainer implements MutableContainerCont
     /**
      * @inheritDoc
      */
+    public function inflect(string $id, string $method, array $arguments = [])
+    {
+        $this->inflector->add($id, $method, $arguments);
+    }
+
+    /**
+     * @inheritDoc
+     */
     protected function instantiateService(string $id, array $arguments)
     {
         $object = parent::instantiateService($id, $arguments);
-        $this->inflector->inflect($object);
+        $this->inflector->apply($object);
 
-        return $this->decorator->decorate($id, $object, $this->isShared($id));
+        return $this->decorator->apply($id, $object, $this->isShared($id));
     }
 
     /**

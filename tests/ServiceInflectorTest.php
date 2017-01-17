@@ -30,7 +30,7 @@ class ServiceInflectorTest extends TestCase
 
         // Creating inflector, setting resolver, adding inflection.
         $inflector = new ServiceInflector($resolver);
-        $inflector->addInflection(TestClass::class, 'setValue', ['value' => 'value']);
+        $inflector->add(TestClass::class, 'setValue', ['value' => 'value']);
 
         // Creating test object.
         $test = new TestClass(new stdClass());
@@ -39,18 +39,18 @@ class ServiceInflectorTest extends TestCase
         $this->assertNull($test->getValue());
 
         // Applying inflections.
-        $inflector->inflect($test);
+        $inflector->apply($test);
 
         // Now value was changed via TestClass::setValue() call.
         $this->assertSame('value', $test->getValue());
 
         // After first run inflection callable must be saved for better performance.
         $test2 = new TestClass(new stdClass());
-        $inflector->inflect($test2);
+        $inflector->apply($test2);
         $this->assertSame($test->getValue(), $test2->getValue());
 
         // Inflection must be called only on TestClass instances.
-        $inflector->inflect(
+        $inflector->apply(
             Mockery::mock(stdClass::class)->shouldNotReceive('setValue')->getMock()
         );
 

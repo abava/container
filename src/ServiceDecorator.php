@@ -57,7 +57,7 @@ final class ServiceDecorator implements ServiceDecoratorContract
     /**
      * @inheritdoc
      */
-    public function addDecorator(string $id, $decorator)
+    public function add(string $id, $decorator)
     {
         if (is_string($decorator)) {
             if (!class_exists($decorator)) {
@@ -77,7 +77,7 @@ final class ServiceDecorator implements ServiceDecoratorContract
      * @param bool $once
      * @return mixed
      */
-    public function decorate(string $id, $object, bool $once = false)
+    public function apply(string $id, $object, bool $once = false)
     {
         if (empty($this->decorators[$id])) {
             return $object;
@@ -87,7 +87,7 @@ final class ServiceDecorator implements ServiceDecoratorContract
             $object = $decorator instanceof Invokable
                 ? $this->invoker->invoke($decorator, [$object])
                 : $this->container->get($decorator, [$object]);
-            $this->inflector->inflect($object);
+            $this->inflector->apply($object);
         }
 
         if ($once) {

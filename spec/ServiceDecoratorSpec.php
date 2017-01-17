@@ -32,29 +32,29 @@ class ServiceDecoratorSpec extends ObjectBehavior
 
     function it_decorates_once(StubFoo $foo)
     {
-        $this->addDecorator(StubContract::class, function(StubContract $stub){
+        $this->add(StubContract::class, function(StubContract $stub){
             if ($stub instanceof StubFoo) {
                 return new StubDecorator($stub);
             }
             throw new Exception(sprintf('$stub already decorated with "%s"', get_class($stub)));
         });
-        $decorated = $this->decorate(StubContract::class, $foo, true);
+        $decorated = $this->apply(StubContract::class, $foo, true);
         $decorated->shouldBeAnInstanceOf(StubDecorator::class);
-        $this->decorate(StubContract::class, $decorated->getWrappedObject());
+        $this->apply(StubContract::class, $decorated->getWrappedObject());
     }
 
     function it_decorates_with_callback(StubContract $stub)
     {
-        $this->addDecorator(StubContract::class, function(StubContract $stub){
+        $this->add(StubContract::class, function(StubContract $stub){
             return new StubDecorator($stub);
         });
-        $this->decorate(StubContract::class, $stub)->shouldBeAnInstanceOf(StubDecorator::class);
+        $this->apply(StubContract::class, $stub)->shouldBeAnInstanceOf(StubDecorator::class);
     }
 
     function it_decorates_with_class(StubFoo $foo)
     {
-        $this->addDecorator(StubContract::class, StubDecorator::class);
-        $this->decorate(StubContract::class, $foo)->shouldBeAnInstanceOf(StubDecorator::class);
+        $this->add(StubContract::class, StubDecorator::class);
+        $this->apply(StubContract::class, $foo)->shouldBeAnInstanceOf(StubDecorator::class);
     }
 
     function it_is_initializable()
@@ -65,6 +65,6 @@ class ServiceDecoratorSpec extends ObjectBehavior
     function it_refuses_to_decorate_with_interface()
     {
         $this->shouldThrow(InvalidArgumentException::class)
-            ->during('addDecorator', [StubContract::class, StubContract::class]);
+            ->during('add', [StubContract::class, StubContract::class]);
     }
 }

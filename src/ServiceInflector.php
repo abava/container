@@ -40,7 +40,7 @@ final class ServiceInflector implements ServiceInflectorContract
     /**
      * @inheritDoc
      */
-    public function addInflection(string $id, string $method, array $arguments = [])
+    public function add(string $id, string $method, array $arguments = [])
     {
         if (!method_exists($id, $method)) {
             throw new InvalidArgumentException(sprintf('Method "%s" not found in "%s".', $method, $id));
@@ -52,7 +52,7 @@ final class ServiceInflector implements ServiceInflectorContract
     /**
      * @inheritDoc
      */
-    public function inflect($object)
+    public function apply($object)
     {
         foreach ($this->inflections as $type => $methods) {
             if (!$object instanceof $type) {
